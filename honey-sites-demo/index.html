@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Honey Sites – Management Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            amber: {
+              50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a',
+              300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b',
+              600: '#d97706', 700: '#b45309'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .transition-hover { transition: box-shadow 0.2s ease; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="min-h-screen bg-[#FAFAFA] pb-20">
+
+<!-- HEADER -->
+<header class="bg-[#ffc409] px-4 md:px-8 py-4 flex items-center justify-between shadow-md sticky top-0 z-50">
+  <div class="flex items-center gap-3">
+    <div class="bg-white p-1.5 rounded-lg shadow-inner">
+      <svg viewBox="0 0 24 24" class="w-6 h-6 fill-amber-500">
+        <path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z"/>
+      </svg>
+    </div>
+    <h1 class="text-xl md:text-2xl font-black text-gray-900 tracking-tight">Honey Sites</h1>
+  </div>
+  <div class="flex items-center gap-2 md:gap-4">
+    <!-- Search toggle -->
+    <button id="searchToggle" class="p-2 bg-white/20 rounded-full text-gray-900 hover:bg-white/30 transition-colors" title="Search">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+    </button>
+    <div class="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-xs select-none">JD</div>
+  </div>
+</header>
+
+<!-- SEARCH BAR (hidden by default) -->
+<div id="searchBar" class="hidden bg-white border-b border-gray-100 px-4 md:px-8 py-3">
+  <input id="searchInput" type="text" placeholder="Search sites…"
+    class="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+    oninput="renderSites()" />
+</div>
+
+<!-- CONTROL BAR -->
+<div class="bg-white border-b border-gray-100 px-4 md:px-8 py-3 flex items-center justify-between overflow-x-auto whitespace-nowrap gap-4">
+  <div class="flex items-center gap-4">
+    <button id="sortBtn" class="flex items-center gap-1.5 text-sm font-bold text-gray-600 hover:text-amber-600 transition-colors" onclick="cycleSort()">
+      Sort
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/>
+      </svg>
+      <span id="sortLabel" class="text-xs font-normal text-amber-500"></span>
+    </button>
+    <button id="filterBtn" class="flex items-center gap-1.5 text-sm font-bold text-gray-600 hover:text-amber-600 transition-colors" onclick="toggleFilter()">
+      Filter
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+      </svg>
+    </button>
+  </div>
+  <div class="flex items-center bg-gray-100 p-1 rounded-xl">
+    <button id="gridBtn" onclick="setView('grid')"
+      class="p-2 rounded-lg transition-all bg-white shadow-sm text-amber-600" title="Grid view">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+    </button>
+    <button id="listBtn" onclick="setView('list')"
+      class="p-2 rounded-lg transition-all text-gray-400 hover:text-gray-600" title="List view">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- FILTER PANEL (hidden) -->
+<div id="filterPanel" class="hidden bg-amber-50 border-b border-amber-100 px-4 md:px-8 py-3 flex flex-wrap gap-3 items-center text-sm">
+  <span class="font-bold text-gray-600">Treatment:</span>
+  <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="filter-check accent-amber-500" value="Mite Strip" onchange="renderSites()"> Mite Strip</label>
+  <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="filter-check accent-amber-500" value="None" onchange="renderSites()"> None</label>
+  <button onclick="clearFilters()" class="ml-auto text-xs text-gray-400 hover:text-red-400 underline">Clear</button>
+</div>
+
+<!-- MAIN CONTENT -->
+<main id="mainContent" class="p-4 md:p-8 max-w-7xl mx-auto"></main>
+
+<!-- EMPTY STATE -->
+<div id="emptyState" class="hidden flex flex-col items-center justify-center py-24 text-gray-400">
+  <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-4 text-amber-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+  </svg>
+  <p class="text-lg font-semibold">No sites found</p>
+  <p class="text-sm mt-1">Try adjusting your search or filters</p>
+</div>
+
+<!-- FAB (mobile) -->
+<button onclick="openAddModal()" class="fixed bottom-6 right-6 w-14 h-14 bg-amber-400 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-amber-500 transition-all md:hidden z-40" title="Add Site">
+  <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+
+<!-- MODAL: Add Site -->
+<div id="addModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 fade-in">
+    <h2 class="text-lg font-black text-gray-800 mb-4">Add New Site</h2>
+    <div class="space-y-3">
+      <input id="newName" type="text" placeholder="Site name (e.g. NELSON)" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="newSplits" type="number" placeholder="Splits" min="0" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+        <input id="newSupers" type="number" placeholder="Supers" min="0" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+      </div>
+      <select id="newTreatment" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+        <option value="None">Treatment: None</option>
+        <option value="Mite Strip">Mite Strip</option>
+        <option value="Oxalic Acid">Oxalic Acid</option>
+        <option value="ApiVar">ApiVar</option>
+      </select>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeAddModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-50">Cancel</button>
+      <button onclick="addSite()" class="flex-1 bg-amber-400 rounded-xl py-2.5 text-sm font-bold text-gray-900 hover:bg-amber-500">Add Site</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Job Log -->
+<div id="jobModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 fade-in">
+    <h2 class="text-lg font-black text-gray-800 mb-1">Log New Job</h2>
+    <p id="jobModalSiteName" class="text-sm text-amber-600 font-semibold mb-4"></p>
+    <div class="space-y-3">
+      <input id="jobName" type="text" placeholder="Job name (e.g. Inspection)" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+      <input id="jobDate" type="date" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+      <div>
+        <label class="text-xs font-bold text-gray-400 uppercase block mb-1">Health distribution (%)</label>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="hHealthy" type="number" placeholder="Healthy %" min="0" max="100" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+          <input id="hWarning" type="number" placeholder="Warning %" min="0" max="100" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300"/>
+          <input id="hCritical" type="number" placeholder="Critical %" min="0" max="100" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"/>
+          <input id="hEmpty" type="number" placeholder="Empty %" min="0" max="100" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"/>
+        </div>
+      </div>
+      <input id="hTotal" type="number" placeholder="Total hive count" min="0" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeJobModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-50">Cancel</button>
+      <button onclick="saveJob()" class="flex-1 bg-amber-400 rounded-xl py-2.5 text-sm font-bold text-gray-900 hover:bg-amber-500">Save Job</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+let sites = [
+  { id:'1', name:'GREYMOUTH', lastJob:'Custom job', lastJobDate:'11 Apr 26',
+    health:{ total:1017, segments:{ healthy:60, warning:20, critical:15, empty:5 }},
+    splits:70, supers:50, treatment:'Mite Strip', readyToMove:0 },
+  { id:'2', name:'MARLBOROUGH', lastJob:'Site Audit', lastJobDate:'18 May 26',
+    health:{ total:424, segments:{ healthy:70, warning:15, critical:10, empty:5 }},
+    splits:0, supers:374, treatment:'None', readyToMove:0 },
+  { id:'3', name:'MARLBOROUGH SOUNDS', lastJob:'Custom Job', lastJobDate:'25 Mar 26',
+    health:{ total:148, segments:{ healthy:40, warning:30, critical:20, empty:10 }},
+    splits:0, supers:100, treatment:'None', readyToMove:0 },
+  { id:'4', name:'ARCHIVE', lastJob:'Custom job', lastJobDate:'24 Mar 26',
+    health:{ total:0, segments:{ healthy:0, warning:0, critical:0, empty:100 }},
+    splits:0, supers:261, treatment:'None', readyToMove:0 }
+];
+
+let viewMode = 'grid';
+let sortState = 0; // 0=default,1=name-asc,2=name-desc,3=hive-desc
+let currentJobSiteId = null;
+const sortLabels = ['','A→Z','Z→A','Hives ↓'];
+
+// ── Donut SVG ─────────────────────────────────────────────────────────────────
+function donutSVG(seg, total, size) {
+  const sw = size * 0.12, r = (size - sw) / 2, circ = 2 * Math.PI * r;
+  const tw = seg.healthy + seg.warning + seg.critical + seg.empty || 100;
+  const hP = (seg.healthy/tw)*circ, wP = (seg.warning/tw)*circ;
+  const cP = (seg.critical/tw)*circ, eP = (seg.empty/tw)*circ;
+  const cx = size/2, cy = size/2;
+  const fs = size < 80 ? Math.round(size*0.14) : 10;
+  const ns = size < 80 ? Math.round(size*0.22) : 14;
+  return `<svg width="${size}" height="${size}" style="transform:rotate(-90deg)">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="transparent" stroke="#e5e7eb" stroke-width="${sw}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="transparent" stroke="#4ade80" stroke-width="${sw}"
+      stroke-dasharray="${hP} ${circ}" stroke-dashoffset="0"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="transparent" stroke="#ffc409" stroke-width="${sw}"
+      stroke-dasharray="${wP} ${circ}" stroke-dashoffset="${-hP}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="transparent" stroke="#f87171" stroke-width="${sw}"
+      stroke-dasharray="${cP} ${circ}" stroke-dashoffset="${-(hP+wP)}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="transparent" stroke="#111827" stroke-width="${sw}"
+      stroke-dasharray="${eP} ${circ}" stroke-dashoffset="${-(hP+wP+cP)}"/>
+    <text x="${cx}" y="${cy-fs*0.5}" font-size="${fs}" fill="#9ca3af" font-weight="600" text-anchor="middle"
+      style="transform:rotate(90deg);transform-origin:${cx}px ${cy}px">HEALTH</text>
+    <text x="${cx}" y="${cy+ns*0.8}" font-size="${ns}" fill="#1f2937" font-weight="800" text-anchor="middle"
+      style="transform:rotate(90deg);transform-origin:${cx}px ${cy}px">${total}</text>
+  </svg>`;
+}
+
+// ── Card HTML ─────────────────────────────────────────────────────────────────
+function cardHTML(site) {
+  return `<div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 flex flex-col transition-all hover:shadow-lg fade-in">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <h3 class="text-xl font-bold text-gray-800">${site.name}</h3>
+        <p class="text-sm text-gray-400">${site.lastJobDate}</p>
+      </div>
+      <button onclick="deleteSite('${site.id}')" class="text-gray-200 hover:text-red-400 transition-colors" title="Remove site">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+          <path d="M9 6V4h6v2"/>
+        </svg>
+      </button>
+    </div>
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex-shrink-0">${donutSVG(site.health.segments, site.health.total, 110)}</div>
+      <div class="flex flex-col gap-3 flex-grow ml-8">
+        <div class="flex justify-between border-b border-gray-50 pb-1">
+          <span class="text-xs font-bold text-gray-400 uppercase">Splits/Nucs</span>
+          <span class="text-lg font-bold text-gray-700">${site.splits}</span>
+        </div>
+        <div class="flex justify-between border-b border-gray-50 pb-1">
+          <span class="text-xs font-bold text-gray-400 uppercase">Supers</span>
+          <span class="text-lg font-bold text-gray-700">${site.supers}</span>
+        </div>
+        <div class="flex justify-between border-b border-gray-50 pb-1">
+          <span class="text-xs font-bold text-gray-400 uppercase">Treatment</span>
+          <span class="text-sm font-bold text-amber-600">${site.treatment}</span>
+        </div>
+      </div>
+    </div>
+    <div class="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+      <div>
+        <p class="text-xs font-bold text-gray-400 uppercase mb-1">Last Job</p>
+        <p class="text-sm font-semibold text-gray-700">${site.lastJob}</p>
+      </div>
+      <button onclick="openJobModal('${site.id}')"
+        class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center hover:bg-amber-100 transition-colors" title="Log job">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+function rowHTML(site) {
+  return `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4 mb-3 transition-hover hover:shadow-md fade-in">
+    <div class="flex-shrink-0">${donutSVG(site.health.segments, site.health.total, 64)}</div>
+    <div class="flex-grow min-w-0">
+      <h3 class="font-bold text-gray-800 truncate">${site.name}</h3>
+      <p class="text-xs text-gray-400">${site.lastJobDate}</p>
+    </div>
+    <div class="hidden md:grid grid-cols-3 gap-8 flex-grow max-w-xs text-center">
+      <div>
+        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Splits</p>
+        <p class="font-semibold text-gray-700">${site.splits}</p>
+      </div>
+      <div>
+        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Supers</p>
+        <p class="font-semibold text-gray-700">${site.supers}</p>
+      </div>
+      <div>
+        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Ready</p>
+        <p class="font-semibold text-gray-700">${site.readyToMove||0}</p>
+      </div>
+    </div>
+    <button onclick="openJobModal('${site.id}')" class="p-2 text-gray-300 hover:text-amber-500 transition-colors" title="Log job">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+    <button onclick="deleteSite('${site.id}')" class="p-2 text-gray-200 hover:text-red-400 transition-colors" title="Remove">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+      </svg>
+    </button>
+  </div>`;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function renderSites() {
+  const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const checked = [...document.querySelectorAll('.filter-check:checked')].map(c=>c.value);
+
+  let filtered = sites.filter(s => {
+    const matchQ = !query || s.name.toLowerCase().includes(query);
+    const matchF = checked.length === 0 || checked.includes(s.treatment);
+    return matchQ && matchF;
+  });
+
+  // sort
+  if (sortState === 1) filtered.sort((a,b)=>a.name.localeCompare(b.name));
+  else if (sortState === 2) filtered.sort((a,b)=>b.name.localeCompare(a.name));
+  else if (sortState === 3) filtered.sort((a,b)=>b.health.total - a.health.total);
+
+  const mc = document.getElementById('mainContent');
+  const es = document.getElementById('emptyState');
+
+  if (filtered.length === 0) {
+    mc.innerHTML = '';
+    es.classList.remove('hidden');
+    return;
+  }
+  es.classList.add('hidden');
+
+  if (viewMode === 'grid') {
+    mc.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${filtered.map(cardHTML).join('')}</div>`;
+  } else {
+    mc.innerHTML = `<div class="flex flex-col">${filtered.map(rowHTML).join('')}</div>`;
+  }
+}
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+function setView(mode) {
+  viewMode = mode;
+  const gb = document.getElementById('gridBtn'), lb = document.getElementById('listBtn');
+  if (mode==='grid') {
+    gb.className = 'p-2 rounded-lg transition-all bg-white shadow-sm text-amber-600';
+    lb.className = 'p-2 rounded-lg transition-all text-gray-400 hover:text-gray-600';
+  } else {
+    lb.className = 'p-2 rounded-lg transition-all bg-white shadow-sm text-amber-600';
+    gb.className = 'p-2 rounded-lg transition-all text-gray-400 hover:text-gray-600';
+  }
+  renderSites();
+}
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+function cycleSort() {
+  sortState = (sortState + 1) % 4;
+  document.getElementById('sortLabel').textContent = sortLabels[sortState];
+  renderSites();
+}
+
+// ── Filter ────────────────────────────────────────────────────────────────────
+function toggleFilter() {
+  const p = document.getElementById('filterPanel');
+  p.classList.toggle('hidden');
+  p.classList.toggle('flex');
+}
+function clearFilters() {
+  document.querySelectorAll('.filter-check').forEach(c=>c.checked=false);
+  renderSites();
+}
+
+// ── Search toggle ─────────────────────────────────────────────────────────────
+document.getElementById('searchToggle').addEventListener('click', () => {
+  const bar = document.getElementById('searchBar');
+  bar.classList.toggle('hidden');
+  if (!bar.classList.contains('hidden')) document.getElementById('searchInput').focus();
+});
+
+// ── Add Site modal ────────────────────────────────────────────────────────────
+function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+function addSite() {
+  const name = document.getElementById('newName').value.trim().toUpperCase();
+  if (!name) return;
+  sites.push({
+    id: Date.now().toString(),
+    name,
+    lastJob: '—',
+    lastJobDate: new Date().toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'2-digit'}),
+    health: { total: 0, segments: { healthy:0, warning:0, critical:0, empty:100 }},
+    splits: parseInt(document.getElementById('newSplits').value)||0,
+    supers: parseInt(document.getElementById('newSupers').value)||0,
+    treatment: document.getElementById('newTreatment').value,
+    readyToMove: 0
+  });
+  closeAddModal();
+  renderSites();
+  document.getElementById('newName').value='';
+  document.getElementById('newSplits').value='';
+  document.getElementById('newSupers').value='';
+}
+
+// ── Job modal ─────────────────────────────────────────────────────────────────
+function openJobModal(id) {
+  currentJobSiteId = id;
+  const site = sites.find(s=>s.id===id);
+  document.getElementById('jobModalSiteName').textContent = site.name;
+  document.getElementById('jobModal').classList.remove('hidden');
+  // default today
+  const td = new Date().toISOString().split('T')[0];
+  document.getElementById('jobDate').value = td;
+}
+function closeJobModal() { document.getElementById('jobModal').classList.add('hidden'); currentJobSiteId=null; }
+function saveJob() {
+  if (!currentJobSiteId) return;
+  const site = sites.find(s=>s.id===currentJobSiteId);
+  if (!site) return;
+  const jn = document.getElementById('jobName').value.trim();
+  const jd = document.getElementById('jobDate').value;
+  const h = parseInt(document.getElementById('hHealthy').value)||0;
+  const w = parseInt(document.getElementById('hWarning').value)||0;
+  const c = parseInt(document.getElementById('hCritical').value)||0;
+  const e = parseInt(document.getElementById('hEmpty').value)||0;
+  const t = parseInt(document.getElementById('hTotal').value)||site.health.total;
+  if (jn) site.lastJob = jn;
+  if (jd) {
+    const d = new Date(jd);
+    site.lastJobDate = d.toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'2-digit'}).replace('/','' );
+  }
+  if (h+w+c+e > 0) site.health.segments = { healthy:h, warning:w, critical:c, empty:e };
+  site.health.total = t;
+  closeJobModal();
+  // clear inputs
+  ['jobName','hHealthy','hWarning','hCritical','hEmpty','hTotal'].forEach(id=>document.getElementById(id).value='');
+  renderSites();
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+function deleteSite(id) {
+  if (!confirm('Remove this site?')) return;
+  sites = sites.filter(s=>s.id!==id);
+  renderSites();
+}
+
+// ── Desktop Add button (in control bar) ──────────────────────────────────────
+const ctrlBar = document.querySelector('.bg-white.border-b');
+const addDesktopBtn = document.createElement('button');
+addDesktopBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Site`;
+addDesktopBtn.className = 'hidden md:flex items-center text-sm font-bold bg-amber-400 text-gray-900 px-4 py-2 rounded-xl hover:bg-amber-500 transition-colors ml-auto';
+addDesktopBtn.onclick = openAddModal;
+document.querySelector('#mainContent').parentElement.querySelector('.bg-white.border-b.border-gray-100').appendChild(addDesktopBtn);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderSites();
+</script>
+</body>
+</html>
