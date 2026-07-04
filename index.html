@@ -1,193 +1,243 @@
 ---
-layout: default  
-title: Home     
+layout: default
+title: Home
 ---
 
 <div class="bgimg">
-    <h1 style="font-size: 40px; font-weight:bold; color:white;">Nathan Drummond - Schwass Portfolio</h1>
-    <h1>Introduction</h1>
+  <h1 style="font-size: 40px; font-weight:bold; color:white;">Nathan Drummond - Schwass Portfolio</h1>
+  <h1>Introduction</h1>
 </div>
-    <div class="align">
-        <div class="wrappersmall">
-            <img src="../src/images/nathan.png" title="Picture of Nathan" alt="Nathan">
-            <p>I'm <strong>Nathan Drummond-Schwass</strong>, a recent graduate with a Bachelor of Information Technology from NMIT, specialising in <strong>ICT Infrastructure</strong>. I'm actively seeking employment opportunities in the ICT field where I can apply my technical expertise and passion for building secure, scalable systems.</p>
-        </div>
-    </div>
-    <div class="second-title" style="padding-top:40px;">Latest Projects</div>
-    <div class="align">
+<div class="align">
+  <div class="wrappersmall">
+    <img src="../src/images/nathan.png" title="Picture of Nathan" alt="Nathan">
+    <p>I'm <strong>Nathan Drummond-Schwass</strong>, a recent graduate with a Bachelor of Information Technology from
+      NMIT, specialising in <strong>ICT Infrastructure</strong>. I'm actively seeking employment opportunities in the
+      ICT field where I can apply my technical expertise and passion for building secure, scalable systems.</p>
+  </div>
+</div>
+<div class="second-title" style="padding-top:40px;">Latest Projects</div>
+<div class="align">
   <div class="wrapper">
     {% comment %}
-      Optionally filter posts by category 'blog'. If you don't want category filtering,
-      comment out the next line and use `site.posts` directly instead of `posts`.
+    Optionally filter posts by category 'blog'. If you don't want category filtering,
+    comment out the next line and use `site.posts` directly instead of `posts`.
     {% endcomment %}
-    {% assign posts = site.posts | where_exp: "post", "post.date <= site.time" %}
-    {% assign modified_posts = posts | where_exp: "post", "post.last_modified_at != nil" | sort: "last_modified_at" | reverse %}
-    {% assign dated_posts = posts | where_exp: "post", "post.last_modified_at == nil" | sort: "date" | reverse %}
-    {% assign posts = modified_posts | concat: dated_posts %}
-    {%- comment -%} if you want only posts with category 'blog', uncomment next line {%- endcomment -%}
-    {%- comment -%} {% assign posts = posts | where_exp: "post", "post.categories contains 'blog'" %} {%- endcomment -%}
-
-    {% if posts.size > 0 %}
+    {% assign posts = site.posts | where_exp: "post", "post.date <= site.time" %} {% assign modified_posts=posts |
+      where_exp: "post" , "post.last_modified_at != nil" | sort: "last_modified_at" | reverse %} {% assign
+      dated_posts=posts | where_exp: "post" , "post.last_modified_at == nil" | sort: "date" | reverse %} {% assign
+      posts=modified_posts | concat: dated_posts %} {%- comment -%} if you want only posts with category 'blog' ,
+      uncomment next line {%- endcomment -%} {%- comment -%} {% assign posts=posts | where_exp: "post"
+      , "post.categories contains 'blog'" %} {%- endcomment -%} {% if posts.size> 0 %}
       {% for post in posts limit:2 %}
 
-        {% if forloop.index == 2 %}
-          <h5 class="previous-project-title" style="margin: 0; text-decoration: underline;">Previous Project</h5>
-        {% endif %}
+      {% if forloop.index == 2 %}
+      <h5 class="previous-project-title" style="margin: 0; text-decoration: underline;">Previous Project</h5>
+      {% endif %}
 
-        <article class="blog-preview">
-          <p class="post-meta">
-            <span class="post-date">{{ post.date | date: "%B %-d, %Y" }}</span>
-            {% if post.last_modified_at %}
-              <span class="updated-badge">Updated: {{ post.last_modified_at | date: "%B %-d, %Y" }}</span>
-            {% endif %}
-          </p>
-          <h6><a href="{{ post.url | relative_url }}">{{ post.title }}</a></h6>
-          
+      <article class="blog-preview">
+        <p class="post-meta">
+          <span class="post-date">{{ post.date | date: "%B %-d, %Y" }}</span>
+          {% if post.last_modified_at %}
+          <span class="updated-badge">Updated: {{ post.last_modified_at | date: "%B %-d, %Y" }}</span>
+          {% endif %}
+        </p>
+        <h6><a href="{{ post.url | relative_url }}">{{ post.title }}</a></h6>
 
-          {%- comment -%}
-            Build a reliable excerpt: use post.excerpt if present, otherwise fall back to content,
-            strip HTML tags and truncate to 30 words.
-          {%- endcomment -%}
-          {% assign excerpt_text = post.excerpt | default: post.content | strip_html | truncatewords: 30 %}
-          <p style="padding: 0 1px;">{{ excerpt_text }}</p>
-          <a href="{{ post.url | relative_url }}" style="display: block;" class="read-more">Read more →</a>
-        </article>
-        {% unless forloop.last %}<hr>{% endunless %}
+
+        {%- comment -%}
+        Build a reliable excerpt: use post.excerpt if present, otherwise fall back to content,
+        strip HTML tags and truncate to 30 words.
+        {%- endcomment -%}
+        {% assign excerpt_text = post.excerpt | default: post.content | strip_html | truncatewords: 30 %}
+        <p style="padding: 0 1px;">{{ excerpt_text }}</p>
+        <a href="{{ post.url | relative_url }}" style="display: block;" class="read-more">Read more →</a>
+      </article>
+      {% unless forloop.last %}
+      <hr>{% endunless %}
       {% endfor %}
 
       {% if posts.size > 2 %}
-        <p style="text-align: center; margin-top: 2rem;">
-          <a href="{{ '/blog/' | relative_url }}" class="view-all-posts">View all posts →</a>
-        </p>
+      <p style="text-align: center; margin-top: 2rem;">
+        <a href="{{ '/blog/' | relative_url }}" class="view-all-posts">View all posts →</a>
+      </p>
       {% endif %}
-    {% else %}
+      {% else %}
       <p style="text-align: center;">No blog posts yet. Check back soon!</p>
-    {% endif %}
+      {% endif %}
   </div>
 </div>
 
-    <div class="align">
-        <div class="wrapper">
-            <h2>Career-Focused Interests</h2>
-            <img src="../src/images/personalinterest.jpg" title="Personal Interests" alt="personal interest">
-            <p>I am eager to join an ICT team where I can apply my hands-on experience in network infrastructure, cloud architecture, and system administration. I'm passionate about learning and growing in network support, network engineering, cloud infrastructure (AWS), or infrastructure security roles. I have practical experience with <b>pfSense</b>, <b>Sophos</b>, <b>Windows Server</b>, and <b>Linux</b> systems, alongside AWS architecture design and deployment. I'm comfortable with automation using <b>Python</b>, monitoring with <b>Prometheus</b> and <b>Grafana</b>, and troubleshooting complex infrastructure challenges. I'm committed to continuous learning and supporting teams in maintaining and optimising secure, scalable, and highly available network and cloud solutions.</p>
-        </div>
-      </div>
-    <h2>Skills gained from my ICT Infrastructure Degree</h2>
-    <div class="align">
-        <div class="wrapperleft">
-            <h5>ICT Related Skills</h5>
-            <div class="content-align"> 
-            <img src="../src/images/ictskills.jpg" class="img-ictskills" title="ICT Skills" alt="ICT skills">
-            <ul id="list-dropdown" class="list-dropdown">
-              <li>
-                <div class="link"><i class="fa-brands fa-aws"></i> Amazon Web Services (AWS) <i class="fa fa-chevron-down"></i></div>
-                <ul class="submenu">
-                  <li>
-                    <p class="downdrop-text">Demonstrated practical AWS architecture and operations skills: designed and deployed a multi-AZ VPC with public and private subnets, secure networking (security groups, NAT), and a load-balanced EC2 web tier with Auto Scaling and EFS for shared storage. <br>Implemented an RDS MySQL instance with automated backups and multi-AZ considerations.<br> A serverless API using Lambda + API Gateway and a Step Functions workflow to process parcel updates and publish notifications via SNS.<br> Ensuring it follows the AWS Well-Architected Framework (6 pillars). <br><b>A Grade</b></p>
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <div class="link"><i class="bi bi-hdd-network"></i>Networking <i class="fa fa-chevron-down"></i></div>
-                <ul class="submenu">
-                  <li>
-                    <p class="downdrop-text">I have a comprehensive understanding of Networking Fundamentals, including the OSI Model, DHCP, Subnetting, and IPv4/6. <br> Familiar with various types of networks such as LAN, WAN, WLAN, and VPN. <br> Experience with network devices like Switches, Routers, Access Points, and Firewalls. <br> Understanding of network services such as DNS, DHCP, and NAT. <br> Knowledgeable about network topologies including Star, Bus, Ring, and Mesh. <br> <b>Multiple A+ Grades</b>
-                    </p>                  
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <div class="link"><i class="bi bi-shield-shaded"></i>Security<i class="fa fa-chevron-down"></i></div>
-                <ul class="submenu">
-                  <li>
-                    <p class="downdrop-text">I have knowledge of Security Fundamentals; Security Concepts such as the CIA Triad. <br> Types of Threats, Attacks and Vulnerabilities such as Phishing, Malware, and Social Engineering. <br> Identity and Access Management such as Authentication, Public Key Infrastructure and Cryptography. <br> Operational Security such as Physical Security, Disaster Recovery, and Business Continuity. <br> <b>A- Grade</b>
-                    </p> 
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <div class="link"><i class="bi bi-bricks"></i>Firewall<i class="fa fa-chevron-down"></i></div>
-                <ul class="submenu">
-                  <li>
-                    <p class="downdrop-text">I have extensive expertise in setting up a PfSense Firewall, Sophos Firewall, and Windows Firewall to secure a network. I have configured the firewall to block and allow traffic based on rules, set up peer-to-peer VPN, pfSense High Availability  and configured NAT and Port Forwarding. <br><b>Multiple A+ Grades</b>
-                    </p>
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <div class="link"><i class="fa-brands fa-linux"></i>Linux<i class="fa fa-chevron-down"></i></div>
-                <ul class="submenu">
-                  <li>
-                    <p class="downdrop-text">I have great expertise in using Linux Operating Systems such as Ubuntu, Kali Linux, and Debian Linux. Including using the terminal to install software, update the system, and manage files and directories using commands such as <em> grep, ls, cd, mkdir</em> and using pipes and redirection.<br> I have done this with both Virtual Machines and Physical Machines.<br> <b>A+ Grade</b>
-                    </p>
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <div class="link"><i class="bi bi-windows"></i>Windows Server<i class="fa fa-chevron-down"></i></div>
-                <ul class="submenu">
-                  <li>
-                    <p class="downdrop-text">I have extensive expertise in setting up a Windows Server that has Active Directory, DNS, DHCP, Group Policy, File Sharing, Backup. I have also configured a Main Domain Controller with a separate Backup Domain Controller used as a failover.<br> Additionally, I have experience in creating and managing Organisational Units (OUs), users, groups, and applying Group Policies to manage and secure the network. <br> I have done this with both Virtual Machines and Physical Machines.<br>
-                    <b>Multiple A+ Grades</b>
-                    </p>
-                  </li>
-                </ul>
-              </li>
-            </ul>
-            </div>
-          </div>
-      </div>
-      <!-- Second skills dropdown section  -->
-      <div class="align">
-        <div class="wrapperleft">
-            <h5>Coding and PC Building Skills</h5>
-            <div class="content-align" id="skills"> 
-                <img src="../src/images/coding-skills.jpg" class="img-ictskills" title="Coding Skills" alt="Coding skills" id="skills-img">
-                <ul id="list-dropdown-2" class="list-dropdown">
-                    <li>
-                        <div class="link"><i class="fa-brands fa-python"></i>Python <i class="fa fa-chevron-down"></i></div>
-                        <ul class="submenu">
-                            <li>
-                              <p class="downdrop-text">I am knowledgeable in developing Python programs using functions, classes, and modules that used either Object Oriented Programming and Procedural Programming. One program allows users register and login to view and interact with CSV files through multiple windows using PySimpleGUI, Matplotlib, Pandas and other libraries.<br> Overall, I have the technical skills to develop Python programs that can be used in real-world applications.<br> <b>A+ Grade</b>
-                              </p>
-                            </li>
-                        </ul>
-                    </li>
-                    <li>
-                        <div class="link"><i class="fa-brands fa-html5"></i>HTML/CSS<i class="fa fa-chevron-down"></i></div>
-                        <ul class="submenu">
-                            <li>
-                              <p class="downdrop-text">I have great expertise in using HTML and CSS to create websites. I have created this Portfolio website and a Notepad taking website fully from scratch and multiple websites using website builders. I have also 3rd party CSS frameworks such as Bootstrap to make the website responsive and visually appealing.<br> <b>Multiple A Grades</b>
-                              </p>
-                            </li>
-                        </ul>
-                    </li>
-                    <li>
-                      <div class="link"><i class="fa-brands fa-js"></i>JavaScript<i class="fa fa-chevron-down"></i></div>
-                      <ul class="submenu">
-                          <li>
-                            <p class="downdrop-text">I have experience in using JavaScript to create a RESTful API using NodeJS with various packages such as Express, Mongoose, and Cors. The Project was to create a <a href="https://nate2898.github.io/notepad/" target="_blank">Notepad</a> website where users securely register and create, edit, and delete their own notes. <br> I have also used JavaScript to create interactive elements on websites such as this dropdown list.<br> <b>B+ Grade</b>
-                            </p>
-                          </li>
-                      </ul>
-                  </li>
-                  <li>
-                    <div class="link"><i class="fa-solid fa-computer"></i></i>Computer Building<i class="fa fa-chevron-down"></i></div>
-                    <ul class="submenu">
-                        <li>
-                          <p class="downdrop-text">I have built multiple computers from scratch, including selecting the right components, assembling the components, and installing the operating system.<br>I also have experience from personally upgrading computers by adding components such as RAM, SSDs, and GPUs, both at home on my own computer and for others.<br> I have experience in troubleshooting and diagnosing hardware and software issues.<br> <b>A+ Grade</b>
-                          </p>
-                        </li>
-                    </ul>
-                </li>
-                </ul>
-            </div>
-        </div>
+<div class="align">
+  <div class="wrapper">
+    <h2>Career-Focused Interests</h2>
+    <img src="../src/images/personalinterest.jpg" title="Personal Interests" alt="personal interest">
+    <p>I am eager to join an ICT team where I can apply my hands-on experience in network infrastructure, cloud
+      architecture, and system administration. I'm passionate about learning and growing in network support, network
+      engineering, cloud infrastructure (AWS), or infrastructure security roles. I have practical experience with
+      <b>pfSense</b>, <b>Sophos</b>, <b>Windows Server</b>, and <b>Linux</b> systems, alongside AWS architecture design
+      and deployment. I'm comfortable with automation using <b>Python</b>, monitoring with <b>Prometheus</b> and
+      <b>Grafana</b>, and troubleshooting complex infrastructure challenges. I'm committed to continuous learning and
+      supporting teams in maintaining and optimising secure, scalable, and highly available network and cloud solutions.
+    </p>
+  </div>
+</div>
+<h2>Skills gained from my ICT Infrastructure Degree</h2>
+<div class="align">
+  <div class="wrapperleft">
+    <h5>ICT Related Skills</h5>
+    <div class="content-align">
+      <img src="../src/images/ictskills.jpg" class="img-ictskills" title="ICT Skills" alt="ICT skills">
+      <ul id="list-dropdown" class="list-dropdown">
+        <li>
+          <div class="link"><i class="fa-brands fa-aws"></i> Amazon Web Services (AWS) <i
+              class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">Demonstrated practical AWS architecture and operations skills: designed and
+                deployed a multi-AZ VPC with public and private subnets, secure networking (security groups, NAT), and a
+                load-balanced EC2 web tier with Auto Scaling and EFS for shared storage. <br>Implemented an RDS MySQL
+                instance with automated backups and multi-AZ considerations.<br> A serverless API using Lambda + API
+                Gateway and a Step Functions workflow to process parcel updates and publish notifications via SNS.<br>
+                Ensuring it follows the AWS Well-Architected Framework (6 pillars). <br><b>A Grade</b></p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="bi bi-hdd-network"></i>Networking <i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have a comprehensive understanding of Networking Fundamentals, including the
+                OSI Model, DHCP, Subnetting, and IPv4/6. <br> Familiar with various types of networks such as LAN, WAN,
+                WLAN, and VPN. <br> Experience with network devices like Switches, Routers, Access Points, and
+                Firewalls. <br> Understanding of network services such as DNS, DHCP, and NAT. <br> Knowledgeable about
+                network topologies including Star, Bus, Ring, and Mesh. <br> <b>Multiple A+ Grades</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="bi bi-shield-shaded"></i>Security<i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have knowledge of Security Fundamentals; Security Concepts such as the CIA
+                Triad. <br> Types of Threats, Attacks and Vulnerabilities such as Phishing, Malware, and Social
+                Engineering. <br> Identity and Access Management such as Authentication, Public Key Infrastructure and
+                Cryptography. <br> Operational Security such as Physical Security, Disaster Recovery, and Business
+                Continuity. <br> <b>A- Grade</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="bi bi-bricks"></i>Firewall<i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have extensive expertise in setting up a PfSense Firewall, Sophos Firewall, and
+                Windows Firewall to secure a network. I have configured the firewall to block and allow traffic based on
+                rules, set up peer-to-peer VPN, pfSense High Availability and configured NAT and Port Forwarding.
+                <br><b>Multiple A+ Grades</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="fa-brands fa-linux"></i>Linux<i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have great expertise in using Linux Operating Systems such as Ubuntu, Kali
+                Linux, and Debian Linux. Including using the terminal to install software, update the system, and manage
+                files and directories using commands such as <em> grep, ls, cd, mkdir</em> and using pipes and
+                redirection.<br> I have done this with both Virtual Machines and Physical Machines.<br> <b>A+ Grade</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="bi bi-windows"></i>Windows Server<i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have extensive expertise in setting up a Windows Server that has Active
+                Directory, DNS, DHCP, Group Policy, File Sharing, Backup. I have also configured a Main Domain
+                Controller with a separate Backup Domain Controller used as a failover.<br> Additionally, I have
+                experience in creating and managing Organisational Units (OUs), users, groups, and applying Group
+                Policies to manage and secure the network. <br> I have done this with both Virtual Machines and Physical
+                Machines.<br>
+                <b>Multiple A+ Grades</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
-       
+  </div>
+</div>
+<!-- Second skills dropdown section  -->
+<div class="align">
+  <div class="wrapperleft">
+    <h5>Coding and PC Building Skills</h5>
+    <div class="content-align" id="skills">
+      <img src="../src/images/coding-skills.jpg" class="img-ictskills" title="Coding Skills" alt="Coding skills"
+        id="skills-img">
+      <ul id="list-dropdown-2" class="list-dropdown">
+        <li>
+          <div class="link"><i class="fa-brands fa-python"></i>Python <i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I am knowledgeable in developing Python programs using functions, classes, and
+                modules that used either Object Oriented Programming and Procedural Programming. One program allows
+                users register and login to view and interact with CSV files through multiple windows using PySimpleGUI,
+                Matplotlib, Pandas and other libraries.<br> Overall, I have the technical skills to develop Python
+                programs that can be used in real-world applications.<br> <b>A+ Grade</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="fa-brands fa-html5"></i>HTML/CSS<i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have great expertise in using HTML and CSS to create websites. I have created
+                this Portfolio website and a Notepad taking website fully from scratch and multiple websites using
+                website builders. I have also 3rd party CSS frameworks such as Bootstrap to make the website responsive
+                and visually appealing.<br> <b>Multiple A Grades</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="fa-brands fa-js"></i>JavaScript<i class="fa fa-chevron-down"></i></div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have experience in using JavaScript to create a RESTful API using NodeJS with
+                various packages such as Express, Mongoose, and Cors. The Project was to create a <a
+                  href="https://nate9828.github.io/notepad/" target="_blank">Notepad</a> website where users securely
+                register and create, edit, and delete their own notes. <br> I have also used JavaScript to create
+                interactive elements on websites such as this dropdown list.<br> <b>B+ Grade</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="link"><i class="fa-solid fa-computer"></i></i>Computer Building<i class="fa fa-chevron-down"></i>
+          </div>
+          <ul class="submenu">
+            <li>
+              <p class="downdrop-text">I have built multiple computers from scratch, including selecting the right
+                components, assembling the components, and installing the operating system.<br>I also have experience
+                from personally upgrading computers by adding components such as RAM, SSDs, and GPUs, both at home on my
+                own computer and for others.<br> I have experience in troubleshooting and diagnosing hardware and
+                software issues.<br> <b>A+ Grade</b>
+              </p>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
 
-      <!-- Popup Chat (Commented out as requested)
+
+<!-- Popup Chat (Commented out as requested)
         <div class="popup-button-box">
           <button id="popup-button"><i class="bi bi-chat-dots-fill"></i> Chat</button>
         </div>
@@ -236,48 +286,48 @@ title: Home
 
 <div class="navbottomblock">
   <div class="navbottomcontent">
-      <div class="navbarbottom">
-          <a href="/">Home</a>
-          <a href="/projects/">Projects</a>
-          <a href="/contact/">Contact</a>
-          <span class="separator">|</span>
-          <a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a>
-          <a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a>
-          <a target="_blank" href="/notepad/">My Notepad Website</a>
-      </div>
-   </div>
-   <p class="footer-credit">Website By Nathan Drummond-Schwass</p>
+    <div class="navbarbottom">
+      <a href="/">Home</a>
+      <a href="/projects/">Projects</a>
+      <a href="/contact/">Contact</a>
+      <span class="separator">|</span>
+      <a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a>
+      <a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a>
+      <a target="_blank" href="/notepad/">My Notepad Website</a>
+    </div>
+  </div>
+  <p class="footer-credit">Website By Nathan Drummond-Schwass</p>
 </div>
-    <!-- scripts -->
+<!-- scripts -->
 <script>
-// Dropdown list using Vanilla JS
-document.addEventListener("DOMContentLoaded", () => {
+  // Dropdown list using Vanilla JS
+  document.addEventListener("DOMContentLoaded", () => {
     const accordions = [
-        document.getElementById('list-dropdown'),
-        document.getElementById('list-dropdown-2')
+      document.getElementById('list-dropdown'),
+      document.getElementById('list-dropdown-2')
     ];
-    
+
     accordions.forEach(accordion => {
-        if (!accordion) return;
-        const links = accordion.querySelectorAll('.link');
-        
-        links.forEach(link => {
-            link.addEventListener('click', () => {
-                const currentLi = link.parentElement;
-                const isOpen = currentLi.classList.contains('open');
-                
-                // Close other submenus in this accordion list
-                const items = accordion.querySelectorAll('li');
-                items.forEach(item => {
-                    item.classList.remove('open');
-                });
-                
-                // If the clicked one wasn't open, open it
-                if (!isOpen) {
-                    currentLi.classList.add('open');
-                }
-            });
+      if (!accordion) return;
+      const links = accordion.querySelectorAll('.link');
+
+      links.forEach(link => {
+        link.addEventListener('click', () => {
+          const currentLi = link.parentElement;
+          const isOpen = currentLi.classList.contains('open');
+
+          // Close other submenus in this accordion list
+          const items = accordion.querySelectorAll('li');
+          items.forEach(item => {
+            item.classList.remove('open');
+          });
+
+          // If the clicked one wasn't open, open it
+          if (!isOpen) {
+            currentLi.classList.add('open');
+          }
         });
+      });
     });
-});
+  });
 </script>

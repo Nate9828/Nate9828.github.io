@@ -1,7 +1,7 @@
 title: Nathan Drummond-Schwass Portfolio
 description: Personal portfolio and project showcase
 baseurl: ""
-url: "https://nate2898.github.io"
+url: "https://nate9828.github.io"
 markdown: kramdown
 highlighter: rouge
 permalink: /all-projects/:year/:month/:day/:title/
