@@ -1,170 +1,227 @@
-/*Form popup css*/
-#popup-container{
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: none;
-    height: 70%;
-    width: 25%;
-    flex-direction: column;
-    align-items: flex-end;
+/* Floating Chat Widget Container */
+#popup-container {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  display: none;
+  height: 480px;
+  width: 320px;
+  flex-direction: column;
+  z-index: 999;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Chat Button Trigger */
+.popup-button-box {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+}
+
+#popup-button {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  padding: 12px 24px;
+  border: none;
+  cursor: pointer;
+  border-radius: 50px;
+  font-family: 'Arial Black', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.3);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#popup-button:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4);
+}
+
+#popup-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Chat Popup Content Card */
+.popup-content {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 16px -6px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  height: 100%;
+  display: none;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  #popup-container {
+    width: calc(100% - 48px);
+    right: 24px;
+    left: 24px;
+    bottom: 80px;
+    height: 400px;
   }
-  .popup-button-box{
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-  #popup-button{
-    background-color: #28bfff;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      cursor: pointer;
-      margin-right: 20px;
-      border-radius: 10px;
-      transition:transform 0.3s ease;
-      position: fixed;
-      bottom: 10px;
-      z-index: 1;
-  }
-  #popup-button:hover{
-    background-color: #00A2E8;
-    transform: scale(1.1);
-  }
-  
-  .popup-content {
-    background-color: white;
-    border: 1px solid #ccc;
-    padding: 2%; 
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-    width: 120%; 
-    max-width: 150%; 
-    height: 100%;
-    display: none;
-    flex-direction: column;
-  }
-  @media (max-width:700px){
-    #popup-container{
-      width: 50%;
-    }
-  }
-  
-  .popup-content.show {
-    display: block;
-    transform: scale(1); 
-  }
-  
-  /* END form popup css */
-  /* chat css */
-  #chatsView{
-    height: 90%;
-    width:100%;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    margin: auto;
-    margin-bottom: 5px;
-  }
-  
-  .time-date {
-    font-style: italic;
-    justify-content: space-between; 
-    
-  }
-  
-  .user-date {
-    display: flex;
-    justify-content: space-between; 
-    flex-direction: row;
-  }
-  
-  .user-date b {
-    flex: 1;
-  }
-  
-  .time-posted {
-    font-style: italic;
-    margin-right: 10px; /* Adjust the spacing as needed */
-  }
-  
-  #messageList li{
-    list-style-type: square;
-    margin-bottom: 10px;
-    background-color: lightgrey;
-    border-radius: 10px;
-    font-family: sans-serif;
-    font-size: 20px;
-    text-align: center; 
-  }
-  
-  #message-form{
-    position: relative;
-    flex-direction: row;
-    display: none;
-  }
-  #message-form input {
-    width: 100%;
-  }
-  #message-form button {
-    background-color: #28bfff;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    cursor: pointer;
-    border-radius: 10px;
-    transition:transform 0.3s ease;
-    
-  }
-  #message-form button:hover{
-    background-color: #00A2E8;
-    transform: scale(1.02);
-  }
-  /*chat css end */
-  
-  /*login/register popup css*/
-  #login-form-pop, #registration-form{
-    display: none;
-    transition: transform 1s ease;
-    transform: scale(0);
-    z-index: 2;
-  }
-  #login-form-pop.show, #registration-form.show{
-    display: block;
-    transform: scale(1);
-  }
-  #login-form, #register-form{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  /*END login/register popup css*/
-  
-  /*button login/register /logout css*/
-  #user-actions{
-    justify-content: center;
-    flex-direction: row;
-    display: flex;
-  }
-  #user-actions button, #login-form button, #register-form button{
-    background-color: #28bfff;
-    margin: 2px;
-    color: white;
-    padding: 5px 5px;
-    border: none;
-    cursor: pointer;
-    border-radius: 10px;
-    transition:transform 0.3s ease;
-  }
-  #user-actions button:hover, #login-form button:hover, #register-form button:hover{
-    background-color: #00A2E8;
-    transform: scale(1.02);
-  }
-  #logoutButton{
-    display: none;
-  }
-  /*END button login/register css*/
-  #imageChat{
-    display: flex;
-    margin: auto;
-  }
-  /*END button login/register css*/
+}
+
+/* Scrollable messages viewport */
+#chatsView {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 12px;
+  padding-right: 4px;
+}
+
+#chatsView::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chatsView::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#chatsView::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+/* Message items list and bubbles */
+#messageList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#messageList li {
+  margin-bottom: 0px;
+  background-color: #f1f5f9;
+  border-radius: 12px;
+  font-family: 'Arial Black', sans-serif;
+  font-size: 0.92rem;
+  padding: 10px 14px;
+  max-width: 85%;
+  align-self: flex-start;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Custom styles for self message alignment if added later */
+#messageList li.self-message {
+  align-self: flex-end;
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+/* User actions buttons (Login/Register/Logout) */
+#user-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+#user-actions button,
+#login-form button,
+#register-form button,
+#message-form button {
+  background-color: #0284c7;
+  color: #ffffff;
+  padding: 8px 14px;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  font-family: 'Arial Black', sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+#user-actions button:hover,
+#login-form button:hover,
+#register-form button:hover,
+#message-form button:hover {
+  background-color: #0369a1;
+}
+
+#user-actions button:active,
+#login-form button:active,
+#register-form button:active,
+#message-form button:active {
+  transform: scale(0.97);
+}
+
+#logoutButton {
+  display: none;
+}
+
+/* Login/Registration sections */
+#login-form-pop,
+#registration-form {
+  display: none;
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+}
+
+#login-form,
+#register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#login-form input,
+#register-form input {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: 'Arial Black', sans-serif;
+  font-size: 0.88rem;
+}
+
+/* Message Input Form styling */
+#message-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
+#message-form input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: 'Arial Black', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+#message-form input:focus {
+  border-color: #0284c7;
+}
+
+#imageChat {
+  display: flex;
+  margin: auto;
+}

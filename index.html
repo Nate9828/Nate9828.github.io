@@ -3,62 +3,10 @@ layout: default
 title: Home     
 ---
 
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-      <meta charset="utf-8">
-      <meta http-equiv="X-UA-Compatible" content="IE=edge">
-      <title>Nathans Portfolio</title>
-      <meta name="description" content="">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-
-      <!-- Bootstrap -->
-       <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" />
-       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-
-
-      <!-- CUSTOM CSS  -->
-      <link rel="stylesheet" href="./src/css/index.css" type="text/css">
-      <link rel="stylesheet" href="./src/css/chat.css" type="text/css">
-
-      <!-- Blog CSS -->
-      <link rel="stylesheet" href="./src/css/blog.css" type="text/css">
-
-      <!-- drop down list CSS -->
-      <link rel="stylesheet" href="./src/css/list-dropdown.css" type="text/css">
-      
-      <!-- Navbar CSS -->
-      <link rel="stylesheet" href="./src/css/homepage-nav-bar.css" type="text/css">
-
-      <!-- favicon -->
-      <link rel="icon" href="./src/images/nameicon.ico" type="image/ico">
-
-      <!-- Google Fonts -->
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
-
-      <!-- jQuery -->      
-      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  </head>
-  <body>
-    <header>
-      <div class="navbar">
-        <a href="./projects/" class="nav-item" >Projects</a>
-        <a href="."> <img class="navimg-small" src="../src/images/namesmall.png" alt="Small"></a>
-        <a href="."> <img class="navimg" src="../src/images/name.png" alt="Large"></a>
-        <a href="./contact/" class="nav-item">Contact</a>
-      </div>
-      <!-- <div class="center-under">
-          <a href="/notepad/" id="important">Notepad Online</a>
-      </div> -->
-  </header>
- <div class="bgimg">
-        <h1 style="font-size: 40px; font-weight:bold; color:white;">Nathan Drummond - Schwass Portfolio</h1>
-        <h1>Introduction</h1>
-    </div>
+<div class="bgimg">
+    <h1 style="font-size: 40px; font-weight:bold; color:white;">Nathan Drummond - Schwass Portfolio</h1>
+    <h1>Introduction</h1>
+</div>
     <div class="align">
         <div class="wrappersmall">
             <img src="../src/images/nathan.png" title="Picture of Nathan" alt="Nathan">
@@ -238,9 +186,10 @@ title: Home
         </div>
     </div>
        
-      <!-- Popup Chat -->
-        <div class="popup-button-box" style="display: none;">
-          <button id="popup-button">Chat</button>
+
+      <!-- Popup Chat (Commented out as requested)
+        <div class="popup-button-box">
+          <button id="popup-button"><i class="bi bi-chat-dots-fill"></i> Chat</button>
         </div>
         <div id="popup-container">
         <div class="popup-content" id="popup-content">
@@ -283,72 +232,52 @@ title: Home
     </div>
   </div>
 </div>
+      -->
 
 <div class="navbottomblock">
   <div class="navbottomcontent">
       <div class="navbarbottom">
-          <h3><a href=".">Home</a></h3>
-          <h3><a href="../projects/">Projects</a></h3>
-          <h3><a href="../contact/">Contact</a></h3>
-          <h3>|</h3>
-          <h3 style="padding: 0%;"><a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a></h3>
-          <h3 style="padding: 0%;"><a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a></h3>
-          <h3 style="padding: 0%;"><a target="_blank" href="../notepad/">My Notepad Website</a></h3>
+          <a href="/">Home</a>
+          <a href="/projects/">Projects</a>
+          <a href="/contact/">Contact</a>
+          <span class="separator">|</span>
+          <a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a>
+          <a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a>
+          <a target="_blank" href="/notepad/">My Notepad Website</a>
       </div>
    </div>
-   <h4>Website By Nathan Drummond-Schwass</h4>
+   <p class="footer-credit">Website By Nathan Drummond-Schwass</p>
 </div>
     <!-- scripts -->
-
-<script src="/src/js/script.js"></script>
 <script>
-
-    //allow user to press enter to send a messsage
-  const messageInput = document.getElementById("messageInput");
-  const sendButton = document.getElementById("sendButton");
-  const maxMessageLength = 25;
-
-  messageInput.addEventListener("input", function () {
-  const inputValue = messageInput.value;
-  if (inputValue.length > maxMessageLength) {
-    messageInput.value = inputValue.substring(0, maxMessageLength);
-  }
+// Dropdown list using Vanilla JS
+document.addEventListener("DOMContentLoaded", () => {
+    const accordions = [
+        document.getElementById('list-dropdown'),
+        document.getElementById('list-dropdown-2')
+    ];
+    
+    accordions.forEach(accordion => {
+        if (!accordion) return;
+        const links = accordion.querySelectorAll('.link');
+        
+        links.forEach(link => {
+            link.addEventListener('click', () => {
+                const currentLi = link.parentElement;
+                const isOpen = currentLi.classList.contains('open');
+                
+                // Close other submenus in this accordion list
+                const items = accordion.querySelectorAll('li');
+                items.forEach(item => {
+                    item.classList.remove('open');
+                });
+                
+                // If the clicked one wasn't open, open it
+                if (!isOpen) {
+                    currentLi.classList.add('open');
+                }
+            });
+        });
+    });
 });
-
-messageInput.addEventListener("keypress", function (e) {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    sendButton.click();
-  }
-});
-
-// Dropdown list
-$(function() {
-    var Accordion = function(el, multiple) {
-        this.el = el || {};
-        this.multiple = multiple || false;
-
-        var links = this.el.find('.link');
-        links.on('click', {el: this.el, multiple: this.multiple}, this.dropdown);
-    }
-
-    Accordion.prototype.dropdown = function(e) {
-        var $el = e.data.el;
-        var $this = $(this);
-        var $next = $this.next();
-
-        $next.slideToggle();
-        $this.parent().toggleClass('open');
-
-        if(!e.data.multiple) {
-            $el.find('.submenu').not($next).slideUp().parent().removeClass('open');
-        }
-    }
-
-    var accordion = new Accordion($('#list-dropdown'), false);
-    var accordion = new Accordion($('#list-dropdown-2'), false);  
-});
-
-    </script>
-    </body>
-</html>
+</script>

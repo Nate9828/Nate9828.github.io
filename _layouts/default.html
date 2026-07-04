@@ -1,65 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
-    <meta name="description" content="{% if page.excerpt %}{{ page.excerpt | strip_html | strip_newlines | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
-    
+    <meta name="description"
+        content="{% if page.excerpt %}{{ page.excerpt | strip_html | strip_newlines | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
+
     <!-- Common CSS for all pages -->
     <link rel="icon" href="{{ '/src/images/nameicon.ico' | relative_url }}" type="image/ico">
-    
-    <!-- Fonts -->
+
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+
     <!-- Your existing CSS -->
     <link rel="stylesheet" href="{{ '/src/css/nav-bar.css' | relative_url }}" type="text/css">
     <link rel="stylesheet" href="{{ '/src/css/blog.css' | relative_url }}" type="text/css">
-    
+
     {% comment %} Load page-specific CSS {% endcomment %}
     {% if page.url == '/' %}
-        <link rel="stylesheet" href="{{ '/src/css/index.css' | relative_url }}" type="text/css">
-        <link rel="stylesheet" href="{{ '/src/css/homepage-nav-bar.css' | relative_url }}" type="text/css">
-        <link rel="stylesheet" href="{{ '/src/css/list-dropdown.css' | relative_url }}" type="text/css">
+    <link rel="stylesheet" href="{{ '/src/css/index.css' | relative_url }}" type="text/css">
+    <link rel="stylesheet" href="{{ '/src/css/list-dropdown.css' | relative_url }}" type="text/css">
+    <link rel="stylesheet" href="{{ '/src/css/chat.css' | relative_url }}" type="text/css">
     {% endif %}
-    
+
     {% if page.url contains 'projects' %}
-        <link rel="stylesheet" href="{{ '/src/css/portfolioprojects.css' | relative_url }}" type="text/css">
-        <link rel="stylesheet" href="{{ '/src/css/popupprojects.css' | relative_url }}" type="text/css">
+    <link rel="stylesheet" href="{{ '/src/css/portfolioprojects.css' | relative_url }}" type="text/css">
+    <link rel="stylesheet" href="{{ '/src/css/popupprojects.css' | relative_url }}" type="text/css">
     {% endif %}
-    
+
     {% if page.url contains 'contact' %}
-        <link rel="stylesheet" href="{{ '/src/css/portfoliocontact.css' | relative_url }}" type="text/css">
+    <link rel="stylesheet" href="{{ '/src/css/portfoliocontact.css' | relative_url }}" type="text/css">
     {% endif %}
 </head>
+
 <body>
+    <canvas id="net-canvas"></canvas>
     <nav>
         <div class="navbar">
-            <a href="/projects/" class="nav-item{% if page.url contains '/projects/' %}-highlight{% endif %}">Projects</a>
-            <a href="/"> <img class="navimg-small" src="{{ '/src/images/namesmall.png' | relative_url }}" alt="Small"></a>
+            <a href="/projects/"
+                class="nav-item{% if page.url contains '/projects/' %}-highlight{% endif %}">Projects</a>
+            <a href="/"> <img class="navimg-small" src="{{ '/src/images/namesmall.png' | relative_url }}"
+                    alt="Small"></a>
             <a href="/"> <img class="navimg" src="{{ '/src/images/name.png' | relative_url }}" alt="Large"></a>
             <a href="/contact/" class="nav-item{% if page.url contains '/contact/' %}-highlight{% endif %}">Contact</a>
         </div>
     </nav>
-    
+
     <!-- Add the blue gradient background for all pages -->
-  
+
 
     {{ content }}
 
     <!-- Page-specific scripts -->
     <script src="{{ '/src/js/scroll-pulse.js' | relative_url }}"></script>
-    {% if page.url == '/' %}
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-        <script src="{{ '/src/js/script.js' | relative_url }}"></script>
-        <script>
-            // Your existing home page JavaScript
-        </script>
-    {% elsif page.url contains '/projects/' %}
-        <script src="{{ '/src/js/projects.js' | relative_url }}"></script>
-        <script src="{{ '/src/js/script.js' | relative_url }}"></script>
+    <script src="{{ '/src/js/net-bg.js' | relative_url }}"></script>
+    {% if page.url contains '/projects/' %}
+    <script src="{{ '/src/js/projects.js' | relative_url }}"></script>
     {% endif %}
 
 

@@ -88,6 +88,10 @@ document.addEventListener("DOMContentLoaded", () => {
         void pulseOverlay.offsetWidth;
         pulseOverlay.classList.add("active");
 
+        window.dispatchEvent(new CustomEvent('border-pulse-trigger', {
+            detail: { left: leftX, right: rightX, target: wrapperElement }
+        }));
+
         navTimer = window.setTimeout(() => {
             nav.classList.remove("border-pulse-active");
             pulseOverlay.classList.remove("active");

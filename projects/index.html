@@ -1,183 +1,175 @@
 ---
-layout: default  
-title: Projects     
+layout: default
+title: Projects
 ---
 
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Nathans Portfolio | Projects</title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        
-        <!-- CSS -->
-        <link rel="stylesheet" href="../src/css/portfolioprojects.css" type="text/css">
-        <!-- <link rel="stylesheet" href="../src/css/chat.css" type="text/css"> -->
-        <link rel="stylesheet" href="../src/css/popupprojects.css" type="text/css">
 
-        <!-- Navbar CSS -->
-        <link rel="stylesheet" href="../src/css/nav-bar.css" type="text/css">
+<div class="bgimg">
+  <h1 style="font-size: 40px; font-weight:bold; color:white;">Nathan Drummond - Schwass Portfolio</h1>
+  <h1>Projects</h1>
+</div>
 
-        <!-- Blog CSS -->
-        <link rel="stylesheet" href="../src/css/blog.css" type="text/css">
 
-        <!-- Favicon -->
-        <link rel="icon" href="../src/images/nameicon.ico" type="image/ico">
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
-    </head>
-    <body>
-      <nav>
-        <div class="navbar">
-            <a href="/projects/" class="nav-item-highlight" >Projects</a>
-            <a href="/.."> <img class="navimg-small" src="../src/images/namesmall.png" alt="Small"></a>
-		    <a href="/.."> <img class="navimg" src="../src/images/name.png" alt="Large"></a>
-            <a href="/contact/" class="nav-item">Contact</a>
-        </div>
-    </nav>
-    <div class="bgimg">
-        <h1 style="font-size: 40px; font-weight:bold; color:white;">Nathan Drummond - Schwass Portfolio</h1>
-        <h1>Projects</h1>
-    </div>
 
-    
-
-   
-    <!-- <div class="align">
+<!-- <div class="align">
       <div class="wrapper">
         <p>I made a Notepad website that allows users to create, edit, and delete notes. It RESTful API that allows users to create an account, login, and save notes to their account. The website is fully responsive and can be used on any device. The website is made using HTML, CSS, JavaScript, and NodeJS. The NodeJS is hosted on Render and uses MongoDB as the database. <a href = "https://nate2898.github.io/public/index.html">Click here to view it</a></p>
         <a href="https://nate2898.github.io/public/index.html" ><img src="../src/images/notepadwebsite.png"  alt="Notepad Website" title="Click to view the website"></a>
       </div>  
     </div> -->
 
-    
+
 <!-- Recent Blog Posts Section -->
 <div class="second-title" style="padding-top:40px;">Latest Projects</div>
 <div class="align">
   <div class="wrapper">
     {% comment %}
-      Optionally filter posts by category 'blog'. If you don't want category filtering,
-      comment out the next line and use `site.posts` directly instead of `posts`.
+    Optionally filter posts by category 'blog'. If you don't want category filtering,
+    comment out the next line and use `site.posts` directly instead of `posts`.
     {% endcomment %}
-    {% assign posts = site.posts | where_exp: "post", "post.date <= site.time" %}
-    {% assign modified_posts = posts | where_exp: "post", "post.last_modified_at != nil" | sort: "last_modified_at" | reverse %}
-    {% assign dated_posts = posts | where_exp: "post", "post.last_modified_at == nil" | sort: "date" | reverse %}
-    {% assign posts = modified_posts | concat: dated_posts %}
-    {%- comment -%} if you want only posts with category 'blog', uncomment next line {%- endcomment -%}
-    {%- comment -%} {% assign posts = posts | where_exp: "post", "post.categories contains 'blog'" %} {%- endcomment -%}
-
-    {% if posts.size > 0 %}
+    {% assign posts = site.posts | where_exp: "post", "post.date <= site.time" %} {% assign modified_posts=posts |
+      where_exp: "post" , "post.last_modified_at != nil" | sort: "last_modified_at" | reverse %} {% assign
+      dated_posts=posts | where_exp: "post" , "post.last_modified_at == nil" | sort: "date" | reverse %} {% assign
+      posts=modified_posts | concat: dated_posts %} {%- comment -%} if you want only posts with category 'blog' ,
+      uncomment next line {%- endcomment -%} {%- comment -%} {% assign posts=posts | where_exp: "post"
+      , "post.categories contains 'blog'" %} {%- endcomment -%} {% if posts.size> 0 %}
       {% for post in posts limit:3 %}
-        <article class="blog-preview">
-          <p class="post-meta">
-            <span class="post-date">{{ post.date | date: "%B %-d, %Y" }}</span>
-            {% if post.last_modified_at %}
-              <span class="updated-badge">Updated: {{ post.last_modified_at | date: "%B %-d, %Y" }}</span>
-            {% endif %}
-          </p>
-          <h6><a href="{{ post.url | relative_url }}">{{ post.title }}</a></h6>
-          
+      <article class="blog-preview">
+        <p class="post-meta">
+          <span class="post-date">{{ post.date | date: "%B %-d, %Y" }}</span>
+          {% if post.last_modified_at %}
+          <span class="updated-badge">Updated: {{ post.last_modified_at | date: "%B %-d, %Y" }}</span>
+          {% endif %}
+        </p>
+        <h6><a href="{{ post.url | relative_url }}">{{ post.title }}</a></h6>
 
-          {%- comment -%}
-            Build a reliable excerpt: use post.excerpt if present, otherwise fall back to content,
-            strip HTML tags and truncate to 30 words.
-          {%- endcomment -%}
-          {% assign excerpt_text = post.excerpt | default: post.content | strip_html | truncatewords: 30 %}
-          <p style="padding: 0 1px;">{{ excerpt_text }}</p>
-          <a href="{{ post.url | relative_url }}" style="display: block;" class="read-more">Read more →</a>
-        </article>
-        {% unless forloop.last %}<hr>{% endunless %}
+
+        {%- comment -%}
+        Build a reliable excerpt: use post.excerpt if present, otherwise fall back to content,
+        strip HTML tags and truncate to 30 words.
+        {%- endcomment -%}
+        {% assign excerpt_text = post.excerpt | default: post.content | strip_html | truncatewords: 30 %}
+        <p style="padding: 0 1px;">{{ excerpt_text }}</p>
+        <a href="{{ post.url | relative_url }}" style="display: block;" class="read-more">Read more →</a>
+      </article>
+      {% unless forloop.last %}
+      <hr>{% endunless %}
       {% endfor %}
 
       {% if posts.size > 3 %}
-        <p style="text-align: center; margin-top: 2rem;">
-          <a href="{{ '/blog/' | relative_url }}" class="view-all-posts">View all posts →</a>
-        </p>
+      <p style="text-align: center; margin-top: 2rem;">
+        <a href="{{ '/blog/' | relative_url }}" class="view-all-posts">View all posts →</a>
+      </p>
       {% endif %}
-    {% else %}
+      {% else %}
       <p style="text-align: center;">No blog posts yet. Check back soon!</p>
-    {% endif %}
+      {% endif %}
   </div>
 </div>
 </div>
- <div class="second-title">Projects I've created throughout my time at NMIT</div>
-    <h3>Network Infrastructure Projects</h3>
-    <div class="align">
-      <div class="wrapperleft">
-        <h3>Network Domain Project for InterTrode</h3>
-        <a id="intertrode" style="cursor: pointer;"><img src="../src/images/NetworkDiagramIntertrode.png"  alt="Network Domain Project" title="Click to view the project"></a>
-        <p>In a team of 3 we created a comprehensive network domain design for InterTrode, a small fictional company. My roles involved setting up Migration, VLAN, Backup Solution, IPSec, and Domain Join Sophos, though I primarily focused on completing VLAN, Backup Solution, IPSec, and Sophos Firewall setup. <a id="intertrode" style="cursor: pointer;">Click here to view it</a></p>
-      </div>
-    </div>
-    <div class="align">
-        <div class="wrapper">
-          <h3>VMware vSphere Network Infrastructure Project</h3>
-          <a id="vmware" style="cursor: pointer;"><img src="https://dawan.training/wp-content/uploads/2021/03/vmware_vsphere.png"  alt="VMware Project" title="Click to view the project"></a>
-          <p>In this project, I designed and implemented a virtualised network infrastructure using VMware vSphere. The project featured High Availability (HA) using pfSense firewalls, which were configured to provide failover for the network. I was the team leader, overseeing the implementation and ensuring all components worked seamlessly together. I also completed most of the work myself, as the other team member was away for a while. <a id="vmware" style="cursor: pointer;">Click here to view it</a></p>
-        </div>
-      </div>
-    </div>
+<div class="second-title">Projects I've created throughout my time at NMIT</div>
+<h3>Network Infrastructure Projects</h3>
+<div class="align">
+  <div class="wrapperleft">
+    <h3>Network Domain Project for InterTrode</h3>
+    <a id="intertrode" style="cursor: pointer;"><img src="../src/images/NetworkDiagramIntertrode.png"
+        alt="Network Domain Project" title="Click to view the project"></a>
+    <p>In a team of 3 we created a comprehensive network domain design for InterTrode, a small fictional company. My
+      roles involved setting up Migration, VLAN, Backup Solution, IPSec, and Domain Join Sophos, though I primarily
+      focused on completing VLAN, Backup Solution, IPSec, and Sophos Firewall setup. <a id="intertrode"
+        style="cursor: pointer;">Click here to view it</a></p>
+  </div>
+</div>
+<div class="align">
+  <div class="wrapper">
+    <h3>VMware vSphere Network Infrastructure Project</h3>
+    <a id="vmware" style="cursor: pointer;"><img
+        src="https://dawan.training/wp-content/uploads/2021/03/vmware_vsphere.png" alt="VMware Project"
+        title="Click to view the project"></a>
+    <p>In this project, I designed and implemented a virtualised network infrastructure using VMware vSphere. The
+      project featured High Availability (HA) using pfSense firewalls, which were configured to provide failover for the
+      network. I was the team leader, overseeing the implementation and ensuring all components worked seamlessly
+      together. I also completed most of the work myself, as the other team member was away for a while. <a id="vmware"
+        style="cursor: pointer;">Click here to view it</a></p>
+  </div>
+</div>
+</div>
 
-    <br id="notepad" id="api"><br>
-    <h3>RESTful API Notepad Website</h3>
-    <div class="align">
-      <div id="border-wrap" class="wrapperleft" >
-          <a  href="../notepad/" ><img  src="../src/images/notepadwebsiteupdate.png"  alt="Notepad Website" title="Click to view the website"></a>
-          <p>I made a Notepad website that allows users to create, edit, and delete notes. It uses a RESTful API which allows users to create an account, login, and save notes to their account. The website is fully responsive and can be used on any device. The website is made using HTML, CSS, JavaScript, and NodeJS. The NodeJS is hosted on Render and uses MongoDB as the database. <a href = "../notepad/">Click here to view it</a></p>
-       </div>
-    </div>
-    <!-- <div class="old-project"><a  href="/old projects/">More Projects</a></div> -->
-    
-    <!-- <div class="fade-container"> -->
-      <div class="second-title" style="padding-top:20px;">Projects I've created in my spare time in recent years</div>
-    <!-- </div> -->
+<br id="notepad" id="api"><br>
+<h3>RESTful API Notepad Website</h3>
+<div class="align">
+  <div id="border-wrap" class="wrapperleft">
+    <a href="../notepad/"><img src="../src/images/notepadwebsiteupdate.png" alt="Notepad Website"
+        title="Click to view the website"></a>
+    <p>I made a Notepad website that allows users to create, edit, and delete notes. It uses a RESTful API which allows
+      users to create an account, login, and save notes to their account. The website is fully responsive and can be
+      used on any device. The website is made using HTML, CSS, JavaScript, and NodeJS. The NodeJS is hosted on Render
+      and uses MongoDB as the database. <a href="../notepad/">Click here to view it</a></p>
+  </div>
+</div>
+<!-- <div class="old-project"><a  href="/old projects/">More Projects</a></div> -->
 
-    <h3 style="padding-top: 0px;">Websites I've made</h3>
-    <p>I've made two websites using Weebly(website builder), one of my websites was based around a music artist called NEFFEX, where I pretty much made a portfolio about him which includes everything he has accomplished. <a href="https://neffexmusic.weebly.com/" target="_blank">Click here to view it</a> The second website is based on the Photographs I have captured, where people can view and even purchase the photos I have created. <a href="https://mintphotographynz.weebly.com/" target="_blank">Click here to view it</a>
-        </p>
-     
-        <div class="align">
-            <div class="wrapper"> 
-                <h3>My Personal Photography Website</h3>
-                <a href="https://mintphotographynz.weebly.com/" target="_blank"><img src="../src/images/mintphotgraphy.png"  alt="Mintphotgraphy" title="Click to view the website"></a>
-                <p>Explore stunning photos of Nelson's Glenduan Ocean Cliff Side, Rabbit Island Beach, Lake Rotoiti, and beautiful roses from around New Zealand.</p>
-                <p>📷 5 different photos of Glenduan Ocean & Rabbit Island Beach, resolutions range from 2K to 4K.</p>
-                <p>📷 3 photos of Lake Rotoiti, resolutions range from 4K to 8K.</p>
-                <p>📷 4 photos of roses from around New Zealand, resolutions range from 4K to 8K.</p>
-            </div>
-          </div>
-        
-        <br id="neffex">
-        <br>
-        <div class="align">
-            <div  class="wrapperleft">
-                <h3>My NEFFEX website</h3>
-                <a href="https://neffexmusic.weebly.com/" target="_blank"><img src="../src/images/neffexwebsite2024.png"  alt="NEFFEX website" title="Click to view the website"></a>
-                <p>NEFFEX, a popular music group, is known for creating copyright-free music and has released 100 original songs in 100 weeks. Their music has gained millions of fans worldwide, featuring hit singles like "Rumors" and "Fight Back," with over 250 million streams each. They've appeared on platforms like YouTube, Billboard, Forbes, ESPN, and Fox Sports, with a growing fan base and over 4 billion streams.</p>
-                <p>The website has a total of 28 pages that users can view and interact with. I've complied all of NEFFEX's songs into different genres, which has over a total of 200 songs with the music videos and social links of that song.</p><p>The website has undergone numerous revisions and transformations, eventually evolving into what it is today</p>
-            </div>
-          </div>
+<!-- <div class="fade-container"> -->
+<div class="second-title" style="padding-top:20px;">Projects I've created in my spare time in recent years</div>
+<!-- </div> -->
 
-        <div class="navbottomblock">
-            <div class="navbottomcontent">
-                <div class="navbarbottom">
-                    <h5><a href="/..">Home</a></h5>
-                    <h5><a href="/projects/">Projects</a></h5>
-                    <h5><a href="/contact/">Contact</a></h5>
-                    <h5>|</h5>
-                    <h5 style="padding: 0%;"><a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a></h5>
-                    <h5 style="padding: 0%;"><a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a></h5>
-                    <h5 style="padding: 0%;"><a target="_blank" href="../notepad/">My Notepad Website</a></h5>
-                </div>
-             </div>
-             <h4>Website By Nathan Drummond-Schwass</h4>
-        </div>
+<h3 style="padding-top: 0px;">Websites I've made</h3>
+<div class="align" style="padding: 0 10%;">
+  <p>I've made two websites using Weebly(website builder), one of my websites was based around a music artist called
+    NEFFEX, where I pretty much made a portfolio about him which includes everything he has accomplished. <a
+      href="https://neffexmusic.weebly.com/" target="_blank">Click here to view it</a> The second website is based on
+    the Photographs I have captured, where people can view and even purchase the photos I have created. <a
+      href="https://mintphotographynz.weebly.com/" target="_blank">Click here to view it</a>
+  </p>
+</div>
+
+<div class="align">
+  <div class="wrapper">
+    <h3>My Personal Photography Website</h3>
+    <a href="https://mintphotographynz.weebly.com/" target="_blank"><img src="../src/images/mintphotgraphy.png"
+        alt="Mintphotgraphy" title="Click to view the website"></a>
+    <p>Explore stunning photos of Nelson's Glenduan Ocean Cliff Side, Rabbit Island Beach, Lake Rotoiti, and beautiful
+      roses from around New Zealand.</p>
+    <p>📷 5 different photos of Glenduan Ocean & Rabbit Island Beach, resolutions range from 2K to 4K.</p>
+    <p>📷 3 photos of Lake Rotoiti, resolutions range from 4K to 8K.</p>
+    <p>📷 4 photos of roses from around New Zealand, resolutions range from 4K to 8K.</p>
+  </div>
+</div>
+
+<br id="neffex">
+<br>
+<div class="align">
+  <div class="wrapperleft">
+    <h3>My NEFFEX website</h3>
+    <a href="https://neffexmusic.weebly.com/" target="_blank"><img src="../src/images/neffexwebsite2024.png"
+        alt="NEFFEX website" title="Click to view the website"></a>
+    <p>NEFFEX, a popular music group, is known for creating copyright-free music and has released 100 original songs in
+      100 weeks. Their music has gained millions of fans worldwide, featuring hit singles like "Rumors" and "Fight
+      Back," with over 250 million streams each. They've appeared on platforms like YouTube, Billboard, Forbes, ESPN,
+      and Fox Sports, with a growing fan base and over 4 billion streams.</p>
+    <p>The website has a total of 28 pages that users can view and interact with. I've complied all of NEFFEX's songs
+      into different genres, which has over a total of 200 songs with the music videos and social links of that song.
+    </p>
+    <p>The website has undergone numerous revisions and transformations, eventually evolving into what it is today</p>
+  </div>
+</div>
+
+<div class="navbottomblock">
+  <div class="navbottomcontent">
+    <div class="navbarbottom">
+      <a href="/">Home</a>
+      <a href="/projects/">Projects</a>
+      <a href="/contact/">Contact</a>
+      <span class="separator">|</span>
+      <a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a>
+      <a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a>
+      <a target="_blank" href="/notepad/">My Notepad Website</a>
     </div>
+  </div>
+  <p class="footer-credit">Website By Nathan Drummond-Schwass</p>
+</div>
+</div>
 
 <!-- Popup Overlay vmware-->
 <div id="popup-overlay-vmware" class="popup-overlay">
@@ -191,17 +183,25 @@ title: Projects
         <section class="intertrode-section">
           <h3>Project Overview: Torea Travel Enterprise Network Solution</h3>
           <p><strong>Project Goal</strong></p>
-          <p>The objective was to design and implement a centrally managed, secure, and scalable IT infrastructure for Torea Travel's head office in Christchurch and its branch in Nelson. The solution was designed to support domestic and international travel operations while ensuring high availability and future-proofing for business expansion.</p>
+          <p>The objective was to design and implement a centrally managed, secure, and scalable IT infrastructure for
+            Torea Travel's head office in Christchurch and its branch in Nelson. The solution was designed to support
+            domestic and international travel operations while ensuring high availability and future-proofing for
+            business expansion.</p>
         </section>
 
         <section class="intertrode-section">
           <h3>1. Business Case and Requirements</h3>
-          <p>Torea Travel required a robust system to support a distributed workforce, including office-based agents and mobile users. Key requirements included:</p>
+          <p>Torea Travel required a robust system to support a distributed workforce, including office-based agents and
+            mobile users. Key requirements included:</p>
           <ul>
-            <li><strong>Centralised Management:</strong> A server-based solution located at the Christchurch head office to manage both sites.</li>
-            <li><strong>Core Services:</strong> Reliable internet access, email, file sharing, and an internal wiki/CMS.</li>
-            <li><strong>Business Continuity:</strong> Comprehensive backup and disaster recovery plans to safeguard sensitive client data.</li>
-            <li><strong>Connectivity:</strong> Secure VPN tunnels for site-to-site communication and remote access for mobile agents.</li>
+            <li><strong>Centralised Management:</strong> A server-based solution located at the Christchurch head office
+              to manage both sites.</li>
+            <li><strong>Core Services:</strong> Reliable internet access, email, file sharing, and an internal wiki/CMS.
+            </li>
+            <li><strong>Business Continuity:</strong> Comprehensive backup and disaster recovery plans to safeguard
+              sensitive client data.</li>
+            <li><strong>Connectivity:</strong> Secure VPN tunnels for site-to-site communication and remote access for
+              mobile agents.</li>
           </ul>
         </section>
 
@@ -210,11 +210,18 @@ title: Projects
 
           <div class="intertrode-feature-block">
             <h8>Network Infrastructure</h8>
-            <p>The network was designed with a focus on <strong>High Availability (HA)</strong> to ensure minimal downtime.</p>
+            <p>The network was designed with a focus on <strong>High Availability (HA)</strong> to ensure minimal
+              downtime.</p>
             <ul>
-              <li><strong>Routing and Firewalls:</strong> The primary gateways utilised <strong>Netgate 4200</strong> and <strong>1100</strong> appliances running <strong>pfSense</strong>. High availability was achieved through <strong>CARP (Common Address Redundancy Protocol)</strong> for IP redundancy and <strong>pfsync</strong> for state table synchronisation.</li>
-              <li><strong>Connectivity:</strong> A peer-to-peer <strong>IPsec VPN</strong> connected the Christchurch and Nelson branches, while <strong>OpenVPN</strong> provided secure tunnels for remote employees.</li>
-              <li><strong>Subnetting:</strong> A structured IPv4 plan was implemented (for example, 192.168.1.0/24 for Christchurch), with built-in scalability to add future branches.</li>
+              <li><strong>Routing and Firewalls:</strong> The primary gateways utilised <strong>Netgate 4200</strong>
+                and <strong>1100</strong> appliances running <strong>pfSense</strong>. High availability was achieved
+                through <strong>CARP (Common Address Redundancy Protocol)</strong> for IP redundancy and
+                <strong>pfsync</strong> for state table synchronisation.
+              </li>
+              <li><strong>Connectivity:</strong> A peer-to-peer <strong>IPsec VPN</strong> connected the Christchurch
+                and Nelson branches, while <strong>OpenVPN</strong> provided secure tunnels for remote employees.</li>
+              <li><strong>Subnetting:</strong> A structured IPv4 plan was implemented (for example, 192.168.1.0/24 for
+                Christchurch), with built-in scalability to add future branches.</li>
             </ul>
           </div>
 
@@ -222,34 +229,34 @@ title: Projects
             <h8>Server and Software Stack</h8>
             <p>The environment utilised a mix of industry-standard enterprise software:</p>
             <ul>
-              <li><strong>Operating Systems:</strong> <strong>Windows Server 2022</strong> for core infrastructure and <strong>Windows 11 Pro</strong> for workstations.</li>
-              <li><strong>Directory Services:</strong> <strong>Active Directory Domain Services (AD DS)</strong> was used for centralised identity and access management.</li>
-              <li><strong>Network Services:</strong> Centralised DHCP with failover and resilient DNS were implemented to ensure continuous network operations.</li>
-              <li><strong>Monitoring:</strong> An <strong>Xubuntu</strong> server running <strong>Prometheus</strong> and <strong>Grafana</strong> provided real-time traffic visualisation and system health monitoring.</li>
+              <li><strong>Operating Systems:</strong> <strong>Windows Server 2022</strong> for core infrastructure and
+                <strong>Windows 11 Pro</strong> for workstations.
+              </li>
+              <li><strong>Directory Services:</strong> <strong>Active Directory Domain Services (AD DS)</strong> was
+                used for centralised identity and access management.</li>
+              <li><strong>Network Services:</strong> Centralised DHCP with failover and resilient DNS were implemented
+                to ensure continuous network operations.</li>
+              <li><strong>Monitoring:</strong> An <strong>Xubuntu</strong> server running <strong>Prometheus</strong>
+                and <strong>Grafana</strong> provided real-time traffic visualisation and system health monitoring.</li>
             </ul>
           </div>
 
           <div class="intertrode-gallery-row vmware-placeholder-row">
             <figure class="intertrode-gallery-item">
-              <button
-                type="button"
-                class="intertrode-thumb-btn vmware-thumb-btn"
+              <button type="button" class="intertrode-thumb-btn vmware-thumb-btn"
                 data-lightbox-src="../src/images/User%20Access%20Diagram.drawio.png"
                 data-lightbox-caption="A diagram illustrating domain user access, detailing organisational units and user groups with their respective access to network resources."
-                aria-label="Open enlarged user access diagram"
-              >
-                <img src="../src/images/User%20Access%20Diagram.drawio.png" alt="User access network diagram" loading="lazy">
+                aria-label="Open enlarged user access diagram">
+                <img src="../src/images/User%20Access%20Diagram.drawio.png" alt="User access network diagram"
+                  loading="lazy">
               </button>
               <figcaption>User Access Diagram</figcaption>
             </figure>
             <figure class="intertrode-gallery-item">
-              <button
-                type="button"
-                class="intertrode-thumb-btn vmware-thumb-btn"
+              <button type="button" class="intertrode-thumb-btn vmware-thumb-btn"
                 data-lightbox-src="../src/images/phyiscal%20digram.drawio.png"
                 data-lightbox-caption="Physical network layout showing the different sites and how the infrastructure connects."
-                aria-label="Open enlarged physical diagram"
-              >
+                aria-label="Open enlarged physical diagram">
                 <img src="../src/images/phyiscal%20digram.drawio.png" alt="Physical network diagram" loading="lazy">
               </button>
               <figcaption>Physical Diagram</figcaption>
@@ -264,8 +271,11 @@ title: Projects
             <h8>Hybrid Cloud Strategy</h8>
             <p>To enhance collaboration and data redundancy, the proposal integrated two primary cloud solutions:</p>
             <ul>
-              <li><strong>Microsoft OneDrive:</strong> Provided 1TB of storage per user, allowing real-time collaboration via Microsoft 365.</li>
-              <li><strong>Microsoft Azure:</strong> Utilised for <strong>Infrastructure as a Service (IaaS)</strong>, providing scalable virtual machines and offsite backup storage via the <strong>Azure MARS agent</strong>.</li>
+              <li><strong>Microsoft OneDrive:</strong> Provided 1TB of storage per user, allowing real-time
+                collaboration via Microsoft 365.</li>
+              <li><strong>Microsoft Azure:</strong> Utilised for <strong>Infrastructure as a Service (IaaS)</strong>,
+                providing scalable virtual machines and offsite backup storage via the <strong>Azure MARS
+                  agent</strong>.</li>
             </ul>
           </div>
 
@@ -273,9 +283,12 @@ title: Projects
             <h8>Security and Compliance</h8>
             <p>A multi-layered security plan was established to mitigate cyber threats:</p>
             <ul>
-              <li><strong>Firewall Policies:</strong> Layer 3 filtering on pfSense to block malicious traffic and manage DNS redirection.</li>
-              <li><strong>Data Protection:</strong> Implementation of <strong>SSL/TLS protocols</strong> for data in transit and multi-factor authentication for all user accounts.</li>
-              <li><strong>Ransomware Mitigation:</strong> A robust backup schedule utilising <strong>Veeam Backup and Replication</strong>, combining local storage with immutable cloud backups.</li>
+              <li><strong>Firewall Policies:</strong> Layer 3 filtering on pfSense to block malicious traffic and manage
+                DNS redirection.</li>
+              <li><strong>Data Protection:</strong> Implementation of <strong>SSL/TLS protocols</strong> for data in
+                transit and multi-factor authentication for all user accounts.</li>
+              <li><strong>Ransomware Mitigation:</strong> A robust backup schedule utilising <strong>Veeam Backup and
+                  Replication</strong>, combining local storage with immutable cloud backups.</li>
             </ul>
           </div>
         </section>
@@ -285,8 +298,10 @@ title: Projects
           <p>The project was designed to be executed over a <strong>six-week timeframe</strong>:</p>
           <ul>
             <li><strong>Phase 1-2:</strong> Requirement analysis, network design, and equipment procurement.</li>
-            <li><strong>Phase 3:</strong> Hardware configuration, including pfSense HA setup and Windows Server deployment.</li>
-            <li><strong>Phase 4-5:</strong> Rigorous testing of security protocols and network performance, followed by staff training.</li>
+            <li><strong>Phase 3:</strong> Hardware configuration, including pfSense HA setup and Windows Server
+              deployment.</li>
+            <li><strong>Phase 4-5:</strong> Rigorous testing of security protocols and network performance, followed by
+              staff training.</li>
             <li><strong>Phase 6:</strong> Final documentation handover and client review.</li>
           </ul>
         </section>
@@ -294,16 +309,20 @@ title: Projects
         <section class="intertrode-section intertrode-conclusion">
           <h3>5. Key Deliverables</h3>
           <ul>
-            <li><strong>Detailed Technical Report:</strong> Comprehensive documentation covering logical/physical diagrams, IP schemas, and security policies.</li>
-            <li><strong>Functional Test-Bed:</strong> A simulated environment hosted on <strong>VMware vSphere</strong> to demonstrate server functionality, VPN connectivity, and failover capabilities.</li>
-            <li><strong>Budget and Procurement Plan:</strong> An itemised hardware and software list totalling approximately <strong>$13,972 NZD</strong>, optimised for performance and future growth.</li>
+            <li><strong>Detailed Technical Report:</strong> Comprehensive documentation covering logical/physical
+              diagrams, IP schemas, and security policies.</li>
+            <li><strong>Functional Test-Bed:</strong> A simulated environment hosted on <strong>VMware vSphere</strong>
+              to demonstrate server functionality, VPN connectivity, and failover capabilities.</li>
+            <li><strong>Budget and Procurement Plan:</strong> An itemised hardware and software list totalling
+              approximately <strong>$13,972 NZD</strong>, optimised for performance and future growth.</li>
           </ul>
         </section>
       </article>
 
       <div id="vmware-lightbox" class="intertrode-lightbox" aria-hidden="true">
         <div class="intertrode-lightbox-panel">
-          <button type="button" class="vmware-lightbox-close intertrode-lightbox-close" aria-label="Close image preview">&times;</button>
+          <button type="button" class="vmware-lightbox-close intertrode-lightbox-close"
+            aria-label="Close image preview">&times;</button>
           <img id="vmware-lightbox-image" src="" alt="Enlarged VMware project image">
           <p id="vmware-lightbox-caption"></p>
         </div>
@@ -322,24 +341,32 @@ title: Projects
       <article class="project-content intertrode-article">
         <section class="intertrode-section">
           <h3>Project Overview: InterTrode Network Domain Design</h3>
-          <p>The core objective of this project was to design and implement a robust, secure, and scalable network infrastructure for <strong>InterTrode</strong>, a small company requiring centralised management and enhanced security. The solution leverages a virtualised environment to host domain services, security appliances, and client workstations.</p>
+          <p>The core objective of this project was to design and implement a robust, secure, and scalable network
+            infrastructure for <strong>InterTrode</strong>, a small company requiring centralised management and
+            enhanced security. The solution leverages a virtualised environment to host domain services, security
+            appliances, and client workstations.</p>
         </section>
 
         <section class="intertrode-section">
           <h3>Technical Architecture and Infrastructure</h3>
-          <p>The network is built upon a foundation of <strong>Windows Server 2022</strong> and <strong>Hyper-V</strong> virtualisation.</p>
+          <p>The network is built upon a foundation of <strong>Windows Server 2022</strong> and <strong>Hyper-V</strong>
+            virtualisation.</p>
           <div class="intertrode-grid">
             <div class="intertrode-card">
               <h8>Domain Controllers</h8>
-              <p>The logical design features a single root domain, <code>InterTrode.local</code>, supported by two Domain Controllers (<strong>DC-1 and DC-2</strong>) hosted on separate physical machines to ensure redundancy.</p>
+              <p>The logical design features a single root domain, <code>InterTrode.local</code>, supported by two
+                Domain Controllers (<strong>DC-1 and DC-2</strong>) hosted on separate physical machines to ensure
+                redundancy.</p>
             </div>
             <div class="intertrode-card">
               <h8>Gateway and Security</h8>
-              <p>A <strong>Sophos Firewall VM</strong> serves as the primary gateway, managing WAN/LAN interfaces and providing web filtering policies to differentiate access levels between servers and clients.</p>
+              <p>A <strong>Sophos Firewall VM</strong> serves as the primary gateway, managing WAN/LAN interfaces and
+                providing web filtering policies to differentiate access levels between servers and clients.</p>
             </div>
             <div class="intertrode-card">
               <h8>Hardware</h8>
-              <p>The implementation utilised <strong>Dell Precision 3460</strong> workstations (Intel Core i5-12500, 16GB RAM) as host machines for the virtual environment.</p>
+              <p>The implementation utilised <strong>Dell Precision 3460</strong> workstations (Intel Core i5-12500,
+                16GB RAM) as host machines for the virtual environment.</p>
             </div>
           </div>
         </section>
@@ -350,60 +377,69 @@ title: Projects
           <div class="intertrode-feature-block">
             <h8>1. Identity and Policy Management</h8>
             <ul>
-              <li><strong>Active Directory (AD DS):</strong> Centralised security boundary for network organisation and access control.</li>
-              <li><strong>Group Policy Objects (GPOs):</strong> Used for granular control over the environment, including disabling Command Prompt access for employees and managing automated <strong>Windows Server Update Service (WSUS)</strong> schedules.</li>
-              <li><strong>Organisational Units (OUs):</strong> Logical containers were created for Admins, Employees, and Domain Controllers to streamline management.</li>
+              <li><strong>Active Directory (AD DS):</strong> Centralised security boundary for network organisation and
+                access control.</li>
+              <li><strong>Group Policy Objects (GPOs):</strong> Used for granular control over the environment,
+                including disabling Command Prompt access for employees and managing automated <strong>Windows Server
+                  Update Service (WSUS)</strong> schedules.</li>
+              <li><strong>Organisational Units (OUs):</strong> Logical containers were created for Admins, Employees,
+                and Domain Controllers to streamline management.</li>
             </ul>
           </div>
 
           <div class="intertrode-feature-block">
             <h8>2. Network Security and Encryption</h8>
             <ul>
-              <li><strong>IPsec Implementation:</strong> Secure, encrypted communication was established between the primary DC and specific client machines using <strong>Kerberos V5 authentication</strong>. The connection was verified through ESP (Encapsulating Security Payload) packet inspection.</li>
-              <li><strong>Firewall Integration:</strong> The Sophos Firewall was joined to the Active Directory domain, allowing for identity-based web policies and encrypted SSL/TLS communication for user authentication.</li>
+              <li><strong>IPsec Implementation:</strong> Secure, encrypted communication was established between the
+                primary DC and specific client machines using <strong>Kerberos V5 authentication</strong>. The
+                connection was verified through ESP (Encapsulating Security Payload) packet inspection.</li>
+              <li><strong>Firewall Integration:</strong> The Sophos Firewall was joined to the Active Directory domain,
+                allowing for identity-based web policies and encrypted SSL/TLS communication for user authentication.
+              </li>
             </ul>
           </div>
 
           <div class="intertrode-feature-block">
             <h8>3. Data Resilience and Availability</h8>
             <ul>
-              <li><strong>Distributed File System (DFS):</strong> Configured to provide a unified namespace and replication for shared folders across both Domain Controllers.</li>
-              <li><strong>Hyper-V Replication:</strong> To minimise downtime, the critical Sophos Firewall VM is replicated from its primary host to DC-2, allowing for rapid recovery in the event of hardware failure.</li>
-              <li><strong>Backup Solutions:</strong> Integrated <strong>Windows Server Backup</strong> was used to safeguard critical data folders, with automated schedules sending backups to separate machines on the domain.</li>
+              <li><strong>Distributed File System (DFS):</strong> Configured to provide a unified namespace and
+                replication for shared folders across both Domain Controllers.</li>
+              <li><strong>Hyper-V Replication:</strong> To minimise downtime, the critical Sophos Firewall VM is
+                replicated from its primary host to DC-2, allowing for rapid recovery in the event of hardware failure.
+              </li>
+              <li><strong>Backup Solutions:</strong> Integrated <strong>Windows Server Backup</strong> was used to
+                safeguard critical data folders, with automated schedules sending backups to separate machines on the
+                domain.</li>
             </ul>
           </div>
 
           <div class="intertrode-feature-block">
             <h8>4. Monitoring and Remote Management</h8>
             <ul>
-              <li><strong>Paessler PRTG:</strong> Installed on the primary DC to monitor CPU usage, disk health, and server uptime, providing real-time alerts for network issues.</li>
-              <li><strong>Windows Admin Center (RSAT):</strong> Enabled centralised remote management of all domain-joined machines from a single web-based interface.</li>
-              <li><strong>AnyDesk:</strong> Implemented on the primary DC to facilitate high-performance remote access for administrators.</li>
+              <li><strong>Paessler PRTG:</strong> Installed on the primary DC to monitor CPU usage, disk health, and
+                server uptime, providing real-time alerts for network issues.</li>
+              <li><strong>Windows Admin Center (RSAT):</strong> Enabled centralised remote management of all
+                domain-joined machines from a single web-based interface.</li>
+              <li><strong>AnyDesk:</strong> Implemented on the primary DC to facilitate high-performance remote access
+                for administrators.</li>
             </ul>
           </div>
 
           <div class="intertrode-gallery-row">
             <figure class="intertrode-gallery-item">
-              <button
-                type="button"
-                class="intertrode-thumb-btn"
+              <button type="button" class="intertrode-thumb-btn"
                 data-lightbox-src="../src/images/sophos%20join%20NEW.png"
                 data-lightbox-caption="Sophos firewall AD connection configuration to have it successfully join the InterTrode domain with SSL/TLS."
-                aria-label="Open enlarged Sophos domain join image"
-              >
+                aria-label="Open enlarged Sophos domain join image">
                 <img src="../src/images/sophos%20join%20NEW.png" alt="Sophos domain join configuration" loading="lazy">
               </button>
               <figcaption>Sophos joined to the InterTrode domain</figcaption>
             </figure>
 
             <figure class="intertrode-gallery-item">
-              <button
-                type="button"
-                class="intertrode-thumb-btn"
-                data-lightbox-src="../src/images/sophos2.PNG"
+              <button type="button" class="intertrode-thumb-btn" data-lightbox-src="../src/images/sophos2.PNG"
                 data-lightbox-caption="Sophos Groups fetched from Windows Server. The firewall is now applying web filtering policies based on user group membership."
-                aria-label="Open enlarged Sophos policy image"
-              >
+                aria-label="Open enlarged Sophos policy image">
                 <img src="../src/images/sophos2.PNG" alt="Sophos policy and authentication view" loading="lazy">
               </button>
               <figcaption>Sophos policy and authentication view</figcaption>
@@ -413,12 +449,19 @@ title: Projects
 
         <section class="intertrode-section">
           <h3>Methodology: Migration and Documentation</h3>
-          <p>The project demonstrated a <strong>Physical-to-Virtual (P2V) migration</strong> using the <strong>Disk2vhd</strong> utility. This involved capturing a physical Windows 10 instance and successfully deploying it as a functional VM within the Hyper-V environment. Comprehensive "Step-by-Step" documentation was also produced to guide junior admins through routine tasks such as user onboarding, password resets, and account decommissioning.</p>
+          <p>The project demonstrated a <strong>Physical-to-Virtual (P2V) migration</strong> using the
+            <strong>Disk2vhd</strong> utility. This involved capturing a physical Windows 10 instance and successfully
+            deploying it as a functional VM within the Hyper-V environment. Comprehensive "Step-by-Step" documentation
+            was also produced to guide junior admins through routine tasks such as user onboarding, password resets, and
+            account decommissioning.
+          </p>
         </section>
 
         <section class="intertrode-section intertrode-conclusion">
           <h3>Conclusion</h3>
-          <p>By combining <strong>Active Directory</strong>, <strong>Sophos security</strong>, and <strong>Hyper-V redundancy</strong>, this project delivered a professional-grade network capable of supporting InterTrode's current business needs while providing a clear path for future expansion.</p>
+          <p>By combining <strong>Active Directory</strong>, <strong>Sophos security</strong>, and <strong>Hyper-V
+              redundancy</strong>, this project delivered a professional-grade network capable of supporting
+            InterTrode's current business needs while providing a clear path for future expansion.</p>
         </section>
       </article>
 
@@ -430,142 +473,90 @@ title: Projects
         </div>
       </div>
     </div>
-</div>
+  </div>
 
-<!-- Scripts -->
-<script src="../src/js/projects.js"></script>
-<script src="../src/js/script.js"></script>
-<script>
-      //allow user to press enter to send a message
-  const messageInput = document.getElementById("messageInput");
-  const sendButton = document.getElementById("sendButton");
-  const maxMessageLength = 25;
+  <!-- Scripts -->
+  <script>
+    const intertrodeLightbox = document.getElementById("intertrode-lightbox");
+    const intertrodeLightboxImage = document.getElementById("intertrode-lightbox-image");
+    const intertrodeLightboxCaption = document.getElementById("intertrode-lightbox-caption");
+    const intertrodeCloseButton = document.querySelector("#intertrode-lightbox .intertrode-lightbox-close");
+    const intertrodeThumbButtons = document.querySelectorAll(".intertrode-thumb-btn:not(.vmware-thumb-btn)");
+    const vmwareLightbox = document.getElementById("vmware-lightbox");
+    const vmwareLightboxImage = document.getElementById("vmware-lightbox-image");
+    const vmwareLightboxCaption = document.getElementById("vmware-lightbox-caption");
+    const vmwareCloseButton = document.querySelector("#vmware-lightbox .vmware-lightbox-close");
+    const vmwareThumbButtons = document.querySelectorAll(".vmware-thumb-btn");
 
-  if (messageInput && sendButton) {
-    messageInput.addEventListener("input", function () {
-      const inputValue = messageInput.value;
-      if (inputValue.length > maxMessageLength) {
-        messageInput.value = inputValue.substring(0, maxMessageLength);
+    function closeIntertrodeLightbox() {
+      if (!intertrodeLightbox) return;
+      intertrodeLightbox.classList.remove("is-open");
+      intertrodeLightbox.setAttribute("aria-hidden", "true");
+    }
+
+    function closeVmwareLightbox() {
+      if (!vmwareLightbox) return;
+      vmwareLightbox.classList.remove("is-open");
+      vmwareLightbox.setAttribute("aria-hidden", "true");
+    }
+
+    if (intertrodeLightbox && intertrodeLightboxImage && intertrodeLightboxCaption) {
+      intertrodeThumbButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const imageSrc = button.getAttribute("data-lightbox-src");
+          const imageCaption = button.getAttribute("data-lightbox-caption") || "";
+
+          intertrodeLightboxImage.src = imageSrc || "";
+          intertrodeLightboxCaption.textContent = imageCaption;
+          intertrodeLightbox.classList.add("is-open");
+          intertrodeLightbox.setAttribute("aria-hidden", "false");
+        });
+      });
+
+      if (intertrodeCloseButton) {
+        intertrodeCloseButton.addEventListener("click", closeIntertrodeLightbox);
       }
-    });
 
-    messageInput.addEventListener("keypress", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendButton.click();
+      intertrodeLightbox.addEventListener("click", (event) => {
+        if (event.target === intertrodeLightbox) {
+          closeIntertrodeLightbox();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && intertrodeLightbox.classList.contains("is-open")) {
+          closeIntertrodeLightbox();
+        }
+      });
+    }
+
+    if (vmwareLightbox && vmwareLightboxImage && vmwareLightboxCaption) {
+      vmwareThumbButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const imageSrc = button.getAttribute("data-lightbox-src");
+          const imageCaption = button.getAttribute("data-lightbox-caption") || "";
+
+          vmwareLightboxImage.src = imageSrc || "";
+          vmwareLightboxCaption.textContent = imageCaption;
+          vmwareLightbox.classList.add("is-open");
+          vmwareLightbox.setAttribute("aria-hidden", "false");
+        });
+      });
+
+      if (vmwareCloseButton) {
+        vmwareCloseButton.addEventListener("click", closeVmwareLightbox);
       }
-    });
-  }
-  // Search Bar
-function myFunction() {
-  var input, filter, ul, li, a, i, txtValue;
-  input = document.getElementById("myInput");
-  filter = input.value.toUpperCase();
-  ul = document.getElementById("myUL");
-  li = ul.getElementsByTagName("li");
-  
-  if (filter === "") {
-    ul.style.display = "none";
-    return;
-  } else {
-    ul.style.display = "block";
-  }
 
-  for (i = 0; i < li.length; i++) {
-    a = li[i].getElementsByTagName("a")[0];
-    txtValue = a.textContent || a.innerText;
-    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-      li[i].style.display = "";
-    } else {
-      li[i].style.display = "none";
+      vmwareLightbox.addEventListener("click", (event) => {
+        if (event.target === vmwareLightbox) {
+          closeVmwareLightbox();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && vmwareLightbox.classList.contains("is-open")) {
+          closeVmwareLightbox();
+        }
+      });
     }
-  }
-}
-
-const intertrodeLightbox = document.getElementById("intertrode-lightbox");
-const intertrodeLightboxImage = document.getElementById("intertrode-lightbox-image");
-const intertrodeLightboxCaption = document.getElementById("intertrode-lightbox-caption");
-const intertrodeCloseButton = document.querySelector("#intertrode-lightbox .intertrode-lightbox-close");
-const intertrodeThumbButtons = document.querySelectorAll(".intertrode-thumb-btn:not(.vmware-thumb-btn)");
-const vmwareLightbox = document.getElementById("vmware-lightbox");
-const vmwareLightboxImage = document.getElementById("vmware-lightbox-image");
-const vmwareLightboxCaption = document.getElementById("vmware-lightbox-caption");
-const vmwareCloseButton = document.querySelector("#vmware-lightbox .vmware-lightbox-close");
-const vmwareThumbButtons = document.querySelectorAll(".vmware-thumb-btn");
-
-function closeIntertrodeLightbox() {
-  if (!intertrodeLightbox) return;
-  intertrodeLightbox.classList.remove("is-open");
-  intertrodeLightbox.setAttribute("aria-hidden", "true");
-}
-
-function closeVmwareLightbox() {
-  if (!vmwareLightbox) return;
-  vmwareLightbox.classList.remove("is-open");
-  vmwareLightbox.setAttribute("aria-hidden", "true");
-}
-
-if (intertrodeLightbox && intertrodeLightboxImage && intertrodeLightboxCaption) {
-  intertrodeThumbButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const imageSrc = button.getAttribute("data-lightbox-src");
-      const imageCaption = button.getAttribute("data-lightbox-caption") || "";
-
-      intertrodeLightboxImage.src = imageSrc || "";
-      intertrodeLightboxCaption.textContent = imageCaption;
-      intertrodeLightbox.classList.add("is-open");
-      intertrodeLightbox.setAttribute("aria-hidden", "false");
-    });
-  });
-
-  if (intertrodeCloseButton) {
-    intertrodeCloseButton.addEventListener("click", closeIntertrodeLightbox);
-  }
-
-  intertrodeLightbox.addEventListener("click", (event) => {
-    if (event.target === intertrodeLightbox) {
-      closeIntertrodeLightbox();
-    }
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && intertrodeLightbox.classList.contains("is-open")) {
-      closeIntertrodeLightbox();
-    }
-  });
-}
-
-if (vmwareLightbox && vmwareLightboxImage && vmwareLightboxCaption) {
-  vmwareThumbButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const imageSrc = button.getAttribute("data-lightbox-src");
-      const imageCaption = button.getAttribute("data-lightbox-caption") || "";
-
-      vmwareLightboxImage.src = imageSrc || "";
-      vmwareLightboxCaption.textContent = imageCaption;
-      vmwareLightbox.classList.add("is-open");
-      vmwareLightbox.setAttribute("aria-hidden", "false");
-    });
-  });
-
-  if (vmwareCloseButton) {
-    vmwareCloseButton.addEventListener("click", closeVmwareLightbox);
-  }
-
-  vmwareLightbox.addEventListener("click", (event) => {
-    if (event.target === vmwareLightbox) {
-      closeVmwareLightbox();
-    }
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && vmwareLightbox.classList.contains("is-open")) {
-      closeVmwareLightbox();
-    }
-  });
-}
-</script>
-             
-
-</body>
-</html>
+  </script>

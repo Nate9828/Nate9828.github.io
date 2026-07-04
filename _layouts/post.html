@@ -16,9 +16,10 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <canvas id="net-canvas"></canvas>
     <nav>
         <div class="navbar">
             <a href="/projects/" class="nav-item{% if page.url contains '/projects/' %}-highlight{% endif %}">Projects</a>
@@ -60,17 +61,18 @@
     <div class="navbottomblock">
         <div class="navbottomcontent">
             <div class="navbarbottom">
-                <h5><a href="/..">Home</a></h5>
-                <h5><a href="/projects/">Projects</a></h5>
-                <h5><a href="/contact/">Contact</a></h5>
-                <h5>|</h5>
-                <h5 style="padding: 0%;"><a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a></h5>
-                <h5 style="padding: 0%;"><a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a></h5>
-                <h5 style="padding: 0%;"><a target="_blank" href="../notepad/">My Notepad Website</a></h5>
+                <a href="/">Home</a>
+                <a href="/projects/">Projects</a>
+                <a href="/contact/">Contact</a>
+                <span class="separator">|</span>
+                <a target="_blank" href="https://www.linkedin.com/in/nathan-d1998">Linkedin</a>
+                <a target="_blank" href="https://mintphotographynz.weebly.com">Photography Website</a>
+                <a target="_blank" href="/notepad/">My Notepad Website</a>
             </div>
         </div>
-        <h4>Website By Nathan Drummond-Schwass</h4>
+        <p class="footer-credit">Website By Nathan Drummond-Schwass</p>
     </div>
+    <script src="{{ '/src/js/net-bg.js' | relative_url }}"></script>
     <script src="{{ '/src/js/scroll-pulse.js' | relative_url }}"></script>
 </body>
 </html>
