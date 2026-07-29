@@ -1,0 +1,55 @@
+---
+layout: default
+title: Tidal - Jellyfish Game
+---
+
+<link rel="stylesheet" href="{{ '/src/css/index.css' | relative_url }}" type="text/css">
+
+<style>
+  html {
+    background-color: #181a1b;
+  }
+
+  body {
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .game-page-wrapper {
+    position: fixed;
+    top: 55px;
+    /* Navbar height (50px + 5px bottom border) */
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - 55px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    z-index: 1;
+  }
+
+  .game-iframe-container {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+  }
+
+  .game-iframe-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    background: transparent;
+  }
+</style>
+
+<div class="game-page-wrapper">
+  <div class="game-iframe-container">
+    <iframe src="{{ '/JellyFishGame/tidal_game.html' | relative_url }}" title="Tidal Game" allow="autoplay"></iframe>
+  </div>
+</div>

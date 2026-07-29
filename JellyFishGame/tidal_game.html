@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Tidal</title>
+  <link rel="stylesheet" href="tidal_game.css">
+</head>
+
+<body>
+  <div id="wrap">
+    <div id="gameBox">
+      <canvas id="c" width="420" height="680"></canvas>
+      <button id="pauseBtn" aria-label="Pause Game" title="Pause Game" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <rect x="2" y="1" width="3.5" height="12" rx="1.5"/>
+          <rect x="8.5" y="1" width="3.5" height="12" rx="1.5"/>
+        </svg>
+      </button>
+      <div id="hud">Tidal</div>
+      <div id="bottomContainer">
+        <div id="statusList">
+          <div id="badgePaused" class="status-badge status-paused" style="display:none;">[PAUSED]</div>
+          <div id="badgeBiome" class="status-badge status-biome" style="display:none;">[SUNLIT LAGOON]</div>
+          <div id="badgeEatActive" class="status-badge status-eat-active" style="display:none;"></div>
+          <div id="badgeEatReady" class="status-badge status-eat-ready" style="display:none;">Space / Click / Tap to Eat (-100)</div>
+          <div id="badgeMagnetic" class="status-badge status-magnetic" style="display:none;">[MAGNETIC SURGE!]</div>
+          <div id="badgeDarkZone" class="status-badge status-darkzone" style="display:none;">[ABYSSAL DARK ZONE]</div>
+        </div>
+        <div id="depth">touch / mouse to steer, or use &larr; &rarr;</div>
+      </div>
+      <div id="overlay">
+        <div class="card">
+          <h1>TIDAL</h1>
+          <div id="menuBestBadge" style="font-size:15px; color:var(--glow-teal); font-weight:bold; margin: -4px 0 12px 0; letter-spacing:0.06em;">Top Score: 0</div>
+
+          <div class="section">
+            <div class="sec-title">Description</div>
+            <div class="sec-body">Descend into the bioluminescent deep. Thread narrow cavern gaps, navigate split forks,
+              and avoid sharp obstacles as the cavern accelerates.</div>
+          </div>
+
+          <div class="section">
+            <div class="sec-title">Controls</div>
+            <div class="control-grid" id="controlGrid">
+              <div class="ctrl-item"><span class="key">&larr; &rarr;</span> / <span class="key">Mouse</span> Steer Jellyfish</div>
+              <div class="ctrl-item"><span class="key">Space</span> / <span class="key">Click</span> Activate Eat Mode</div>
+              <div class="ctrl-item"><span class="key">ESC</span> / <span class="key">Leave Canvas</span> Pause Game</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="sec-title">Objectives & Mechanics</div>
+            <div class="sec-body">
+              • Gather <strong>Plankton</strong> to build your score.<br>
+              • Activate <strong>Eat Mode</strong> (costs 100 Plankton) to crunch hazards.<br>
+              • Thread tight <strong>Barnacle Rows</strong> in deep waters.<br>
+              • Enter swirling <strong>Tidal Currents</strong> for a Magnetic Plankton Surge!<br>
+              • Navigate pitch-black <strong>Abyssal Dark Zones</strong> using bioluminescent glows.
+            </div>
+          </div>
+
+          <div class="score-line" id="gameScoreLine" style="display:none;"></div>
+          <button id="startBtn">Begin</button>
+        </div>
+      </div>
+      <div id="pauseOverlay" style="display:none;">
+        <div class="card">
+          <h1>PAUSED</h1>
+          <div class="sec-body" style="margin-bottom:8px; opacity:0.85;">The abyss rests...</div>
+          <div class="score-line" id="pauseScoreLine" style="margin: 8px 0 14px 0;"></div>
+          <div class="ctrl-item" id="pauseInstruction" style="margin-bottom:18px;"><span class="key">ESC</span> or move mouse over game to resume</div>
+          <button id="resumeBtn">Resume</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="tidal_game.js"></script>
+</body>
+
+</html>
