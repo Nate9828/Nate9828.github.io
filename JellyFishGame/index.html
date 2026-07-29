@@ -18,13 +18,58 @@ title: Tidal - Jellyfish Game
     height: 100vh;
   }
 
+  /* Collapsed navbar state for JellyFishGame page */
+  nav {
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transform: translateY(-100%) !important;
+  }
+
+  nav.nav-expanded {
+    transform: translateY(0) !important;
+  }
+
+  /* Fixed top-left navigation toggle button (menu / chevron-up) */
+  .nav-toggle-btn {
+    position: fixed;
+    top: 9px;
+    left: 12px;
+    z-index: 200; /* Stays above navbar (z-index: 100) */
+    background: rgba(24, 26, 27, 0.85);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  }
+
+  .nav-toggle-btn:hover {
+    background: rgba(56, 189, 248, 0.25);
+    border-color: #38bdf8;
+    color: #ffffff;
+    transform: scale(1.05);
+  }
+
+  .nav-toggle-btn.expanded {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: #38bdf8;
+    color: #38bdf8;
+  }
+
+  /* Full screen game page wrapper */
   .game-page-wrapper {
     position: fixed;
-    top: 55px;
-    /* Navbar height (50px + 5px bottom border) */
+    top: 0;
     left: 0;
     width: 100vw;
-    height: calc(100vh - 55px);
+    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -48,8 +93,38 @@ title: Tidal - Jellyfish Game
   }
 </style>
 
+<!-- Fixed Top Left Button to toggle navigation -->
+<button id="nav-toggle-btn" class="nav-toggle-btn" aria-label="Open Navigation" title="Open Navigation">
+  <i id="nav-toggle-icon" class="bi bi-list" style="font-size: 1.3rem;"></i>
+</button>
+
 <div class="game-page-wrapper">
   <div class="game-iframe-container">
     <iframe src="{{ '/JellyFishGame/tidal_game.html' | relative_url }}" title="Tidal Game" allow="autoplay"></iframe>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const nav = document.querySelector('nav');
+    const toggleBtn = document.getElementById('nav-toggle-btn');
+    const toggleIcon = document.getElementById('nav-toggle-icon');
+
+    if (nav && toggleBtn && toggleIcon) {
+      toggleBtn.addEventListener('click', () => {
+        const isExpanded = nav.classList.toggle('nav-expanded');
+        toggleBtn.classList.toggle('expanded', isExpanded);
+
+        if (isExpanded) {
+          toggleIcon.className = 'bi bi-chevron-up';
+          toggleBtn.setAttribute('title', 'Close Navigation');
+          toggleBtn.setAttribute('aria-label', 'Close Navigation');
+        } else {
+          toggleIcon.className = 'bi bi-list';
+          toggleBtn.setAttribute('title', 'Open Navigation');
+          toggleBtn.setAttribute('aria-label', 'Open Navigation');
+        }
+      });
+    }
+  });
+</script>
