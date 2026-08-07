@@ -1,0 +1,2005 @@
+/* ---------------------------------------------------------
+   ASSAULT MODE (landscape) — 4 Waves, Upgrades, Power-ups & 3-Phase Leviathan Boss
+--------------------------------------------------------- */
+if (typeof randInt === 'undefined') {
+  window.randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+}
+
+const assault = {
+  state: 'idle', // idle | playing | over
+  wave: 1, totalWaves: 4, kills: 0, points: 0, health: 100,
+  vw: 960, vh: 540,
+  getViewport() {
+    const vh = 540;
+    const scale = window.innerHeight / vh;
+    const vw = Math.max(960, window.innerWidth / scale);
+    return { scale, ox: 0, oy: 0, vw, vh, speedScale: vw / 960 };
+  },
+
+  // Weapon & Base Upgrades
+  fireRateLevel: 1, // Max 3
+  multishotLevel: 1, // Max 3 (1: Single, 2: Dual, 3: Triple Spread)
+  fortifyLevel: 1,   // Max 3 (1: 100 HP, 2: 150 HP, 3: 200 HP)
+  maxHealth: 100,
+
+  // Active Power-up Timers & Stacked Shields
+  overchargeTimer: 0,
+  shieldCount: 0,
+
+  // Shooting rate limiter
+  lastShotTime: 0,
+
+  spawnQueue: 0, spawnTimer: 0, spawnInterval: 900,
+  turret: { x: 0, y: 0, r: 20, vx: 0, vy: 0 },
+  bolts: [], enemyBolts: [], missiles: [], enemies: [], drops: [], particles: [], boss: null,
+
+  start() {
+    const W = this.vw, H = this.vh;
+    this.state = 'playing'; this.wave = 1; this.kills = 0; this.points = 0;
+    this.fireRateLevel = 1; this.multishotLevel = 1; this.fortifyLevel = 1;
+    this.maxHealth = 100; this.health = 100;
+    this.overchargeTimer = 0; this.healthFlashTimer = 0; this.shieldCount = 0; this.shields = []; this.lastShotTime = 0;
+    this.bolts = []; this.enemyBolts = []; this.missiles = []; this.enemies = []; this.drops = []; this.particles = []; this.boss = null;
+    this.turret.x = Math.max(70, W * 0.09); this.turret.y = H / 2; this.turret.vx = 0; this.turret.vy = 0;
+
+    lastUpgradesState = '';
+    this.beginWave();
+    renderHUD();
+    renderUpgradesHTML(true);
+    removeBossHUD();
+  },
+
+  beginWave() {
+    if (this.wave === 4) {
+      // Wave 4: Dedicated Leviathan Boss Battle
+      this.spawnQueue = 0;
+      this.spawnBoss();
+      showWaveAnnouncement('⚠️ WARNING: BOSS DETECTED', 'LEVIATHAN FLAGSHIP APPROACHING', true);
+    } else {
+      const counts = [8, 12, 16];
+      this.spawnQueue = counts[this.wave - 1];
+      this.spawnTimer = 0;
+      this.spawnInterval = [900, 680, 500][this.wave - 1];
+      this.boss = null;
+
+      const subtitles = [
+        'ENEMY RECON DIVISION // DEFEND BASE',
+        'ARMORED CRUISERS DETECTED // HEAVY FIREPOWER REQUIRED',
+        'KAMIKAZE SWARM APPROACHING // WATCH DEFENSES'
+      ];
+      showWaveAnnouncement(`WAVE ${this.wave} // INCOMING`, subtitles[this.wave - 1] || 'DEFEND THE BASE', false);
+    }
+  },
+
+  spawnBoss() {
+    const W = this.vw, H = this.vh;
+    this.boss = {
+      x: W + 160,
+      y: H / 2,
+      targetY: H / 2,
+      r: 65,
+      hp: 110,
+      maxHp: 110,
+      phase: 0,
+      timer: 0,
+      shootTimer: 0,
+      salvoCooldown: 0,
+      missileQueue: [],
+      launchTimer: 0
+    };
+    createBossHUD();
+  },
+
+  launchMissileSalvo(b, count, isStaggered) {
+    const vp = this.getViewport();
+    const H = vp.vh, speedScale = vp.speedScale;
+    if (isStaggered) {
+      b.missileQueue = [];
+      for (let i = 0; i < count; i++) {
+        const tY = HUD_HEIGHT + 40 + (i / Math.max(1, count - 1)) * (H - HUD_HEIGHT - 80);
+        const yOffset = (i - (count - 1) / 2) * 18;
+        b.missileQueue.push({ tY, yOffset });
+      }
+      b.launchTimer = 0;
+    } else {
+      for (let i = 0; i < count; i++) {
+        const tY = HUD_HEIGHT + 40 + (i / Math.max(1, count - 1)) * (H - HUD_HEIGHT - 80);
+        const yOffset = (i - (count - 1) / 2) * 18;
+        this.missiles.push({
+          x: b.x - 45,
+          y: clamp(b.y + yOffset, HUD_HEIGHT + 30, H - 30),
+          r: 8, vx: (b.phase === 3 ? -250 : -230) * speedScale, vy: 0, targetY: tY, hp: 1
+        });
+      }
+      b.salvoCooldown = 1800;
+    }
+  },
+
+  triggerPhaseBurst(b) {
+    const vp = this.getViewport();
+    const H = vp.vh, speedScale = vp.speedScale;
+    this.burstParticles(b.x, b.y, b.phase === 3 ? '#e040fb' : (b.phase === 1 ? '#ff1744' : '#ffb020'));
+
+    if (b.phase === 1) {
+      // Phase 1 Opening Volley: 5 Homing Missiles
+      const count = 5;
+      for (let i = 0; i < count; i++) {
+        const tY = HUD_HEIGHT + 40 + (i / (count - 1)) * (H - HUD_HEIGHT - 80);
+        const yOffset = (i - (count - 1) / 2) * 22;
+        this.missiles.push({
+          x: b.x - 45,
+          y: clamp(b.y + yOffset, HUD_HEIGHT + 30, H - 30),
+          r: 8, vx: -230 * speedScale, vy: 0, targetY: tY, hp: 1
+        });
+      }
+    } else if (b.phase === 2) {
+      // Phase 2 Opening Swarm: 5 Kamikaze Drones with variable speeds
+      const count = 5;
+      for (let i = 0; i < count; i++) {
+        const yOffset = (i - (count - 1) / 2) * 32;
+        this.enemies.push({
+          type: 'kamikaze',
+          x: b.x - 40,
+          y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35),
+          r: 12, vx: -rand(220, 370) * speedScale, vy: 0, amp: 40, freq: 3, t: i * 0.3, hp: 1, maxHp: 1
+        });
+      }
+    } else if (b.phase === 3) {
+      // Phase 3 Hyper Opening Barrage: 6 Homing Missiles AND 8 Kamikaze Drones!
+      const countM = 6;
+      const countD = 8;
+      for (let i = 0; i < countM; i++) {
+        const tY = HUD_HEIGHT + 40 + (i / (countM - 1)) * (H - HUD_HEIGHT - 80);
+        const yOffset = (i - (countM - 1) / 2) * 20;
+        this.missiles.push({
+          x: b.x - 50,
+          y: clamp(b.y + yOffset, HUD_HEIGHT + 30, H - 30),
+          r: 8, vx: -250 * speedScale, vy: 0, targetY: tY, hp: 1
+        });
+      }
+      for (let i = 0; i < countD; i++) {
+        const yOffset = (i - (countD - 1) / 2) * 22;
+        this.enemies.push({
+          type: 'kamikaze',
+          x: b.x - 40,
+          y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35),
+          r: 12, vx: -rand(240, 400) * speedScale, vy: 0, amp: 55, freq: 3.5, t: i * 0.2, hp: 1, maxHp: 1
+        });
+      }
+    }
+  },
+
+  shoot() {
+    if (this.state !== 'playing') return;
+    if (typeof overlay !== 'undefined' && overlay && !overlay.classList.contains('hidden')) return;
+    const vp = this.getViewport();
+    const speedScale = vp.speedScale;
+    const now = performance.now();
+
+    // Cooldown based on Fire Rate level and Overcharge power-up
+    const baseCooldown = [450, 320, 175][this.fireRateLevel - 1];
+    const cooldown = this.overchargeTimer > 0 ? baseCooldown * 0.5 : baseCooldown;
+
+    if (now - this.lastShotTime < cooldown) return;
+    this.lastShotTime = now;
+
+    const boltSpeed = 850 * speedScale;
+    const boltDamage = 1;
+
+    if (this.multishotLevel === 1) {
+      // Single Shot
+      this.bolts.push({ x: this.turret.x + 18, y: this.turret.y, vx: boltSpeed, vy: 0, dmg: boltDamage });
+    } else if (this.multishotLevel === 2) {
+      // Dual Parallel Shot
+      this.bolts.push({ x: this.turret.x + 18, y: this.turret.y - 8, vx: boltSpeed, vy: 0, dmg: boltDamage });
+      this.bolts.push({ x: this.turret.x + 18, y: this.turret.y + 8, vx: boltSpeed, vy: 0, dmg: boltDamage });
+    } else {
+      // Triple Spread Shot
+      this.bolts.push({ x: this.turret.x + 18, y: this.turret.y, vx: boltSpeed, vy: 0, dmg: boltDamage });
+      this.bolts.push({ x: this.turret.x + 18, y: this.turret.y - 6, vx: boltSpeed, vy: -140 * speedScale, dmg: boltDamage });
+      this.bolts.push({ x: this.turret.x + 18, y: this.turret.y + 6, vx: boltSpeed, vy: 140 * speedScale, dmg: boltDamage });
+    }
+  },
+
+  buyUpgrade(type) {
+    if (type === 'rate' && this.fireRateLevel < 3) {
+      const cost = [100, 250][this.fireRateLevel - 1];
+      if (this.points >= cost) {
+        this.points -= cost;
+        this.fireRateLevel++;
+        this.burstParticles(this.turret.x, this.turret.y, 'var(--energy)');
+      }
+    } else if (type === 'spread' && this.multishotLevel < 3) {
+      const cost = [150, 350][this.multishotLevel - 1];
+      if (this.points >= cost) {
+        this.points -= cost;
+        this.multishotLevel++;
+        this.burstParticles(this.turret.x, this.turret.y, 'var(--player)');
+      }
+    } else if ((type === 'fortify' || type === 'laser') && this.fortifyLevel < 3) {
+      const cost = [200, 400][this.fortifyLevel - 1];
+      if (this.points >= cost) {
+        this.points -= cost;
+        this.fortifyLevel++;
+        this.maxHealth = this.fortifyLevel === 2 ? 150 : 200;
+        this.health = Math.min(this.maxHealth, this.health + 50);
+        this.healthFlashTimer = 1000;
+        this.burstParticles(this.turret.x, this.turret.y, '#4dff88');
+      }
+    }
+    renderAssaultHUDNumbers();
+  },
+
+  burstParticles(x, y, color) {
+    for (let i = 0; i < 14; i++) {
+      this.particles.push(spark(x, y, color));
+    }
+  },
+
+  damageBase(n) {
+    if (this.shields && this.shields.length > 0) {
+      this.shields.pop();
+      this.shieldCount = this.shields.length;
+      for (let i = 0; i < 16; i++) {
+        this.particles.push(spark(this.turret.x, this.turret.y, 'var(--hazard)'));
+      }
+      return; // Stacked shield absorbs 1 hit completely
+    }
+    this.health -= n;
+    for (let i = 0; i < 12; i++) this.particles.push(spark(this.turret.x, this.turret.y, 'var(--player)'));
+    if (this.health <= 0) {
+      this.health = 0;
+      this.state = 'over';
+      removeBossHUD();
+      showAssaultEnd(false);
+    }
+  },
+
+  spawnPowerupDrop(x, y) {
+    if (Math.random() > 0.12) return; // 12% drop chance (rarer power-ups)
+    const isBossPhase = this.boss !== null || this.wave === 4;
+    const canSpawnHealth = this.health < 100 || isBossPhase;
+    const types = canSpawnHealth
+      ? ['nanite', 'overcharge', 'shield']
+      : ['overcharge', 'shield'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const vp = this.getViewport();
+    const speedScale = vp ? vp.speedScale : 1;
+    this.drops.push({ x, y, r: 12, vx: -240 * speedScale, type, t: 0 });
+  },
+
+  update(dt) {
+    if (this.state !== 'playing') return;
+    const vp = this.getViewport();
+    const W = vp.vw, H = vp.vh, speedScale = vp.speedScale;
+
+    // Timers
+    if (this.overchargeTimer > 0) this.overchargeTimer -= dt;
+    if (this.healthFlashTimer > 0) this.healthFlashTimer -= dt;
+
+    if (this.shields && this.shields.length > 0) {
+      for (const s of this.shields) {
+        s.timer -= dt;
+      }
+      this.shields = this.shields.filter(s => s.timer > 0);
+      this.shieldCount = this.shields.length;
+    }
+
+    // Auto-fire while touching/clicking screen or holding spacebar
+    if (input.down || input.keys[' '] || input.keys['spacebar']) {
+      this.shoot();
+    }
+
+    // Turret movement
+    const targetSpeed = 750 * speedScale;
+    const keySpeed = 420 * speedScale;
+    const baseX = Math.max(70, W * 0.09);
+    const keyActive = input.keys['arrowleft'] || input.keys['a'] || input.keys['arrowright'] || input.keys['d'] || input.keys['arrowup'] || input.keys['w'] || input.keys['arrowdown'] || input.keys['s'];
+    if (keyActive) input.mouseActive = false;
+
+    if (!keyActive && input.mouseActive && input.y != null) {
+      const dy = input.y - this.turret.y;
+      this.turret.vy = clamp(dy * 10, -targetSpeed, targetSpeed);
+    } else if (!keyActive) {
+      this.turret.vy = (this.turret.vy || 0) * 0.9;
+    }
+
+    if (!keyActive && input.mouseActive && input.x != null) {
+      const targetX = Math.min(input.x, baseX);
+      const dx = targetX - this.turret.x;
+      this.turret.vx = clamp(dx * 10, -targetSpeed, targetSpeed);
+    } else if (!keyActive) {
+      this.turret.vx = (this.turret.vx || 0) * 0.9;
+    }
+
+    if (keyActive) {
+      this.turret.vx = 0; this.turret.vy = 0;
+      if (input.keys['arrowup'] || input.keys['w']) this.turret.vy = -keySpeed;
+      if (input.keys['arrowdown'] || input.keys['s']) this.turret.vy = keySpeed;
+      if (input.keys['arrowleft'] || input.keys['a']) this.turret.vx = -keySpeed;
+      if (input.keys['arrowright'] || input.keys['d']) this.turret.vx = keySpeed;
+    }
+
+    this.turret.y = clamp(this.turret.y + (this.turret.vy || 0) * dt / 1000, HUD_HEIGHT + 24, H - 24);
+    this.turret.x = clamp(this.turret.x + (this.turret.vx || 0) * dt / 1000, 30, baseX);
+
+    // Standard Enemy Spawner (Waves 1-3)
+    if (this.spawnQueue > 0 && this.wave < 4) {
+      this.spawnTimer += dt;
+      if (this.spawnTimer > this.spawnInterval) {
+        this.spawnTimer = 0; this.spawnQueue--;
+
+        let type = 'raider';
+        if (this.wave === 1) {
+          type = Math.random() < 0.3 ? 'kamikaze' : 'raider';
+        } else if (this.wave === 2) {
+          type = Math.random() < 0.25 ? 'cruiser' : (Math.random() < 0.35 ? 'kamikaze' : 'raider');
+        } else {
+          type = Math.random() < 0.35 ? 'cruiser' : (Math.random() < 0.4 ? 'kamikaze' : 'raider');
+        }
+
+        let speed = (65 + this.wave * 15) * speedScale;
+        let hpVal = 1;
+        let radius = 18;
+
+        if (type === 'kamikaze') {
+          speed = (rand(210, 360) + this.wave * 15) * speedScale;
+          radius = 12;
+        } else if (type === 'cruiser') {
+          speed = 45 * speedScale;
+          hpVal = 4;
+          radius = 26;
+        }
+
+        this.enemies.push({
+          type,
+          x: W + 30,
+          y: rand(HUD_HEIGHT + 40, H - 50),
+          r: radius,
+          vx: -speed,
+          vy: 0,
+          amp: type === 'raider' && this.wave >= 2 ? rand(25, 60) : (type === 'kamikaze' ? rand(50, 100) : 0),
+          freq: rand(1.5, 3.5),
+          t: rand(0, 10),
+          hp: hpVal,
+          maxHp: hpVal,
+          missileTimer: type === 'cruiser' ? rand(1800, 2600) : 0
+        });
+      }
+    }
+
+    // Boss Battle Logic (Wave 4)
+    if (this.boss) {
+      this.updateBoss(dt, baseX);
+    }
+
+    // Move Player Bolts
+    for (const b of this.bolts) {
+      b.x += b.vx * dt / 1000;
+      b.y += (b.vy || 0) * dt / 1000;
+    }
+    this.bolts = this.bolts.filter(b => b.x < W + 40 && b.y > 0 && b.y < H);
+
+    // Move Homing Missiles
+    for (const m of this.missiles) {
+      m.x += m.vx * dt / 1000;
+      const dy = m.targetY - m.y;
+      m.vy = clamp(dy * 2.5, -130, 130);
+      m.y += m.vy * dt / 1000;
+
+      // Smoke Trail
+      if (Math.random() < 0.35) {
+        this.particles.push({
+          x: m.x + 8, y: m.y + rand(-2, 2),
+          vx: rand(20, 60), vy: rand(-15, 15),
+          life: rand(140, 260), maxLife: 260,
+          color: Math.random() < 0.5 ? '#ffb020' : '#ff1744'
+        });
+      }
+    }
+    // Homing Missiles vs Base Line
+    this.missiles = this.missiles.filter(m => {
+      if (m.x - m.r < baseX) {
+        this.damageBase(12);
+        this.burstParticles(m.x, m.y, '#ff1744');
+        return false;
+      }
+      return true;
+    });
+
+    // Move & Update Enemies
+    for (const e of this.enemies) {
+      e.t += dt / 1000;
+      e.x += e.vx * dt / 1000;
+      if (e.type === 'kamikaze') {
+        const dy = this.turret.y - e.y;
+        e.y += Math.sign(dy) * Math.min(Math.abs(dy), 140) * dt / 1000;
+      } else if (e.type === 'cruiser') {
+        e.missileTimer = (e.missileTimer || 2200) - dt;
+        if (e.missileTimer <= 0) {
+          e.missileTimer = 3200;
+          this.missiles.push({
+            x: e.x - e.r,
+            y: e.y,
+            r: 7,
+            vx: -220 * speedScale,
+            vy: 0,
+            targetY: this.turret.y,
+            hp: 1
+          });
+          for (let i = 0; i < 6; i++) {
+            this.particles.push(spark(e.x - e.r, e.y, '#ff1744'));
+          }
+        }
+      } else if (e.amp) {
+        e.y += Math.sin(e.t * e.freq) * e.amp * dt / 1000;
+      }
+    }
+
+    // Enemies vs Base
+    this.enemies = this.enemies.filter(e => {
+      if (e.x - e.r < baseX + this.turret.r) {
+        const dmg = e.type === 'cruiser' ? 25 : (e.type === 'kamikaze' ? 18 : 12);
+        this.damageBase(dmg);
+        for (let i = 0; i < 10; i++) this.particles.push(spark(e.x, e.y, 'var(--hazard)'));
+        return false;
+      }
+      return true;
+    });
+
+    // Player Bolts vs Homing Missiles (PLAYER CAN SHOOT MISSILES DOWN!)
+    for (const b of this.bolts) {
+      for (const m of this.missiles) {
+        if (!b.dead && !m.dead && dist2(b.x, b.y, m.x, m.y) < (m.r + 8) ** 2) {
+          if (!b.pierce) b.dead = true;
+          m.dead = true;
+          for (let i = 0; i < 8; i++) this.particles.push(spark(m.x, m.y, 'var(--energy)'));
+        }
+      }
+
+      // Player Bolts vs Enemies
+      for (const e of this.enemies) {
+        if (!b.dead && !e.dead && dist2(b.x, b.y, e.x, e.y) < (e.r + 6) ** 2) {
+          const isFrontalHit = b.x < e.x && Math.abs(b.y - e.y) < e.r * 0.7;
+          if (e.type === 'cruiser' && isFrontalHit && !b.pierce) {
+            for (let i = 0; i < 4; i++) this.particles.push(spark(b.x, b.y, 'var(--hazard)'));
+            b.dead = true;
+            continue;
+          }
+
+          if (!b.pierce) b.dead = true;
+          e.hp -= b.dmg || 1;
+          for (let i = 0; i < 6; i++) this.particles.push(spark(e.x, e.y, 'var(--energy)'));
+
+          if (e.hp <= 0) {
+            e.dead = true;
+            this.kills++;
+            const ptsEarned = e.type === 'cruiser' ? 40 : (e.type === 'kamikaze' ? 25 : 15);
+            this.points += ptsEarned;
+            this.spawnPowerupDrop(e.x, e.y);
+          }
+        }
+      }
+
+      // Player Bolts vs Boss
+      if (this.boss && !b.dead && dist2(b.x, b.y, this.boss.x, this.boss.y) < (this.boss.r + 18) ** 2) {
+        if (!b.pierce) b.dead = true;
+        this.boss.hp -= b.dmg || 1;
+        for (let i = 0; i < 8; i++) this.particles.push(spark(b.x, b.y, 'var(--player)'));
+        if (this.boss.hp <= 0) {
+          this.boss.hp = 0;
+          this.kills++;
+          this.points += 500;
+          this.burstParticles(this.boss.x, this.boss.y, 'var(--energy)');
+          this.boss = null;
+          removeBossHUD();
+          this.state = 'over';
+          showAssaultEnd(true);
+        }
+      }
+    }
+
+    this.bolts = this.bolts.filter(b => !b.dead);
+    this.missiles = this.missiles.filter(m => !m.dead);
+    this.enemies = this.enemies.filter(e => !e.dead);
+
+    // Dropped Power-ups logic
+    for (const d of this.drops) {
+      d.t += dt / 1000;
+
+      // Check if power-up reaches the base area
+      if (!d.inBase && d.x <= baseX + 10) {
+        d.inBase = true;
+        d.baseTimer = 0;
+      }
+
+      if (d.inBase) {
+        d.baseTimer = (d.baseTimer || 0) + dt;
+        // Decelerate quickly so it comes to a stop in the base zone
+        d.vx = (d.vx || 0) * Math.pow(0.01, dt / 1000);
+        d.x += d.vx * dt / 1000;
+        if (d.baseTimer >= 1000) {
+          d.expired = true;
+        }
+      } else {
+        d.x += d.vx * dt / 1000;
+      }
+
+      d.y += Math.sin(d.t * 4) * 20 * dt / 1000;
+
+      if (dist2(d.x, d.y, this.turret.x, this.turret.y) < (this.turret.r + d.r + 4) ** 2) {
+        d.collected = true;
+        if (d.type === 'nanite') {
+          this.health = Math.min(100, this.health + 25);
+          this.healthFlashTimer = 1000;
+          this.burstParticles(this.turret.x, this.turret.y, '#4dff88');
+        } else if (d.type === 'overcharge') {
+          this.overchargeTimer = 12000;
+          this.burstParticles(this.turret.x, this.turret.y, 'var(--energy)');
+        } else if (d.type === 'shield') {
+          this.shields = this.shields || [];
+          this.shields.push({ maxTimer: 12000, timer: 12000 });
+          this.shieldCount = this.shields.length;
+          this.burstParticles(this.turret.x, this.turret.y, 'var(--hazard)');
+        }
+      }
+    }
+    this.drops = this.drops.filter(d => !d.collected && !d.expired);
+
+    // Wave clear check (Waves 1-3)
+    if (this.spawnQueue <= 0 && this.enemies.length === 0 && !this.boss && this.state === 'playing' && this.wave < 4) {
+      this.wave++;
+      this.beginWave();
+      renderHUD();
+    }
+
+    updateParticles(this.particles, dt);
+    renderAssaultHUDNumbers();
+  },
+
+  updateBoss(dt, baseX) {
+    const vp = this.getViewport();
+    const W = vp.vw, H = vp.vh, speedScale = vp.speedScale;
+    const b = this.boss;
+    b.timer += dt / 1000;
+
+    // Salvo cooldown & staggered missile launcher updates
+    if (b.salvoCooldown > 0) b.salvoCooldown -= dt;
+
+    if (b.missileQueue && b.missileQueue.length > 0) {
+      b.launchTimer = (b.launchTimer || 0) + dt;
+      if (b.launchTimer >= 140) {
+        b.launchTimer = 0;
+        const item = b.missileQueue.shift();
+        if (item) {
+          this.missiles.push({
+            x: b.x - 45,
+            y: clamp(b.y + item.yOffset, HUD_HEIGHT + 30, H - 30),
+            r: 8, vx: b.phase === 3 ? -250 : -230, vy: 0, targetY: item.tY, hp: 1
+          });
+          this.burstParticles(b.x - 45, b.y + item.yOffset, '#ff1744');
+        }
+        if (b.missileQueue.length === 0) {
+          b.salvoCooldown = 1800; // Pause after completing staggered salvo
+        }
+      }
+    }
+
+    // Phase transition check
+    const hpPct = b.hp / b.maxHp;
+    let newPhase = 1;
+    if (hpPct <= 0.33) newPhase = 3;
+    else if (hpPct <= 0.66) newPhase = 2;
+
+    if (b.phase !== newPhase) {
+      b.phase = newPhase;
+      this.triggerPhaseBurst(b);
+    }
+
+    // Phase 1 Logic: Active stance (x: W - 165), launches 3-6 Homing Missiles (50% Staggered Ripple / 50% Fan Volley)
+    if (b.phase === 1) {
+      if (b.x > W - 165) {
+        b.x -= 60 * dt / 1000;
+      }
+      b.targetY = H / 2 + Math.sin(b.timer * 1.6) * (H * 0.28);
+      b.y += (b.targetY - b.y) * 2.5 * dt / 1000;
+
+      b.shootTimer += dt;
+      if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1500) {
+        b.shootTimer = 0;
+        const count = randInt(3, 6);
+        const isStaggered = Math.random() < 0.5;
+        this.launchMissileSalvo(b, count, isStaggered);
+      }
+    }
+    // Phase 2 Logic: Gentle hover (x: W - 130), launches 4-7 Kamikaze Drones with variable speeds
+    else if (b.phase === 2) {
+      if (b.x > W - 130) {
+        b.x -= 80 * dt / 1000;
+      }
+      b.targetY = H / 2 + Math.sin(b.timer * 1.2) * (H * 0.22);
+      b.y += (b.targetY - b.y) * 2.0 * dt / 1000;
+
+      b.shootTimer += dt;
+      if (b.shootTimer > 1600) {
+        b.shootTimer = 0;
+        const count = randInt(4, 7);
+        for (let i = 0; i < count; i++) {
+          const yOffset = (i - (count - 1) / 2) * 26;
+          this.enemies.push({
+            type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(220, 370), vy: 0, amp: 40, freq: 3, t: i * 0.15, hp: 1, maxHp: 1
+          });
+        }
+      }
+    }
+    // Phase 3 Logic: HYPER-MODE! Missiles (3-6), Drones (6-9), OR Combined Assault (Missiles 3-6 AND Drones 6-9 simultaneously!)
+    else if (b.phase === 3) {
+      b.targetY = H / 2 + Math.sin(b.timer * 2.4) * (H * 0.35);
+      b.y += (b.targetY - b.y) * 3.5 * dt / 1000;
+
+      // Emergency lightning sparks on damaged hull
+      if (Math.random() < 0.35) {
+        this.particles.push(spark(b.x + rand(-b.r, b.r), b.y + rand(-b.r, b.r), '#ffee55'));
+      }
+
+      b.shootTimer += dt;
+      if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1300) {
+        b.shootTimer = 0;
+
+        const attackRoll = Math.random();
+
+        if (attackRoll < 0.30) {
+          // Attack Option 1: Missiles Only (3 to 6)
+          const mCount = randInt(3, 6);
+          const isStaggered = Math.random() < 0.5;
+          this.launchMissileSalvo(b, mCount, isStaggered);
+        } else if (attackRoll < 0.60) {
+          // Attack Option 2: Drones Only (6 to 9)
+          const dCount = randInt(6, 9);
+          for (let i = 0; i < dCount; i++) {
+            const yOffset = (i - (dCount - 1) / 2) * 22;
+            this.enemies.push({
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1, maxHp: 1
+            });
+          }
+          b.salvoCooldown = 1800;
+        } else {
+          // Attack Option 3: COMBINED DUAL ASSAULT! Both Missiles (3 to 6) AND Drones (6 to 9) simultaneously!
+          const dCount = randInt(6, 9);
+          const mCount = randInt(3, 6);
+
+          // Spawn Drones (6 to 9) with variable speeds
+          for (let i = 0; i < dCount; i++) {
+            const yOffset = (i - (dCount - 1) / 2) * 22;
+            this.enemies.push({
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1, maxHp: 1
+            });
+          }
+
+          // Launch Missiles (3 to 6) simultaneously or staggered
+          const isStaggered = Math.random() < 0.4;
+          this.launchMissileSalvo(b, mCount, isStaggered);
+        }
+      }
+    }
+  },
+
+  draw() {
+    const vp = this.getViewport();
+    const W = vp.vw;
+    const H = vp.vh;
+    const baseX = Math.max(70, W * 0.09);
+
+    ctx.save();
+    ctx.scale(vp.scale, vp.scale);
+
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.clip();
+
+    // Fortified Base Structure
+    drawBaseStructure(ctx, W, H, baseX, this.turret.r, this.health, this.healthFlashTimer);
+
+    // Force Barrier Shield(s) around Base & Turret if active
+    if (this.shields && this.shields.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = getComputedColor('--hazard');
+      ctx.shadowColor = getComputedColor('--hazard');
+      ctx.shadowBlur = 18;
+
+      const count = this.shields.length;
+      const rings = Math.min(count, 4);
+      for (let i = 0; i < rings; i++) {
+        const s = this.shields[i];
+        const radius = this.turret.r + 14 + i * 6;
+        const progress = Math.max(0, Math.min(1, s.timer / (s.maxTimer || 12000)));
+
+        // Faint background ring track
+        ctx.save();
+        ctx.strokeStyle = 'rgba(77, 216, 255, 0.15)';
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = Math.max(1, 2.5 - i * 0.4);
+        ctx.beginPath();
+        ctx.arc(this.turret.x, this.turret.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Active countdown arc (shrinking clockwise as 6-second timer counts down)
+        ctx.lineWidth = Math.max(1.5, 3.5 - i * 0.6);
+        ctx.beginPath();
+        const startAngle = -Math.PI / 2;
+        const endAngle = startAngle + progress * Math.PI * 2;
+        ctx.arc(this.turret.x, this.turret.y, radius, startAngle, endAngle, false);
+        ctx.stroke();
+      }
+
+      if (count > 1) {
+        ctx.fillStyle = getComputedColor('--hazard');
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`🛡️ x${count}`, this.turret.x, this.turret.y - this.turret.r - 20);
+      }
+      ctx.restore();
+    }
+
+    drawTurret(ctx, this.turret.x, this.turret.y, this.turret.r);
+
+    // Player Bolts
+    for (const b of this.bolts) {
+      ctx.save();
+      const color = b.pierce ? getComputedColor('--hazard') : getComputedColor('--energy');
+      ctx.fillStyle = color;
+      ctx.shadowColor = color; ctx.shadowBlur = 12;
+      ctx.fillRect(b.x - 12, b.y - (b.pierce ? 3 : 2), b.pierce ? 22 : 16, b.pierce ? 6 : 4);
+      ctx.restore();
+    }
+
+    // Homing Missiles
+    for (const m of this.missiles) {
+      drawMissile(ctx, m);
+    }
+
+    // Dropped Power-ups
+    for (const d of this.drops) {
+      drawPowerup(ctx, d);
+    }
+
+    // Enemies
+    for (const e of this.enemies) {
+      drawEnemy(ctx, e);
+    }
+
+    // Boss
+    if (this.boss) {
+      drawBoss(ctx, this.boss);
+    }
+
+    drawParticles(ctx, this.particles);
+
+    // Arena boundary border frame
+    ctx.strokeStyle = getComputedColor('--panel-border');
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, W, H);
+
+    ctx.restore();
+  }
+};
+
+window.assault = assault;
+
+/* ---------------------------------------------------------
+   HUD Update & Upgrades UI
+--------------------------------------------------------- */
+function createBossHUD() {
+  removeBossHUD();
+  const hud = document.createElement('div');
+  hud.id = 'boss-hud';
+  hud.className = 'boss-phase-1';
+  hud.innerHTML = `
+    <div class="boss-header">
+      <span class="boss-name">LEVIATHAN FLAGSHIP</span>
+      <span class="boss-phase-tag" id="boss-phase-tag">PHASE 1 // MISSILE BARRAGE</span>
+    </div>
+    <div id="bossbar-wrap"><div id="bossbar"></div></div>
+  `;
+  document.body.appendChild(hud);
+}
+
+function removeBossHUD() {
+  removeWaveAnnouncement();
+  const existing = document.getElementById('boss-hud');
+  if (existing) existing.remove();
+}
+
+function showWaveAnnouncement(title, subtitle, isBoss) {
+  removeWaveAnnouncement();
+  const el = document.createElement('div');
+  el.id = 'wave-announcement';
+  if (isBoss) el.className = 'boss-wave';
+  el.innerHTML = `
+    <div class="wave-title">${title}</div>
+    <div class="wave-subtitle">${subtitle}</div>
+  `;
+  document.body.appendChild(el);
+
+  void el.offsetWidth;
+  el.classList.add('active');
+
+  if (window.waveAnnounceTimer) clearTimeout(window.waveAnnounceTimer);
+  window.waveAnnounceTimer = setTimeout(() => {
+    removeWaveAnnouncement();
+  }, 2600);
+}
+
+function removeWaveAnnouncement() {
+  if (window.waveAnnounceTimer) clearTimeout(window.waveAnnounceTimer);
+  const existing = document.getElementById('wave-announcement');
+  if (existing) existing.remove();
+}
+
+let lastUpgradesState = '';
+
+function renderUpgradesHTML(force) {
+  const bar = document.getElementById('upgrade-bar');
+  if (!bar) return;
+
+  const rCost = assault.fireRateLevel < 3 ? [100, 250][assault.fireRateLevel - 1] : 'MAX';
+  const mCost = assault.multishotLevel < 3 ? [150, 350][assault.multishotLevel - 1] : 'MAX';
+  const fCost = assault.fortifyLevel < 3 ? [200, 400][assault.fortifyLevel - 1] : 'MAX';
+
+  const rAffordable = assault.fireRateLevel < 3 && assault.points >= rCost;
+  const mAffordable = assault.multishotLevel < 3 && assault.points >= mCost;
+  const fAffordable = assault.fortifyLevel < 3 && assault.points >= fCost;
+
+  const currentState = `${assault.points}_${assault.fireRateLevel}_${assault.multishotLevel}_${assault.fortifyLevel}_${rAffordable}_${mAffordable}_${fAffordable}`;
+  if (!force && currentState === lastUpgradesState) return;
+  lastUpgradesState = currentState;
+
+  bar.innerHTML = `
+    <button type="button" class="upgrade-chip ${rAffordable ? 'affordable' : (assault.fireRateLevel === 3 ? 'maxed' : '')}" data-upgrade="rate" title="Rate Level ${assault.fireRateLevel} (${rCost})">
+      <span class="hotkey-badge">[1]</span><span class="upg-icon">⚡</span> <span class="upg-name">Rate</span> <span class="upg-lvl"><span class="upg-lvl-word">Lvl </span>${assault.fireRateLevel}</span> <span class="upg-cost">(${rCost})</span>
+    </button>
+    <button type="button" class="upgrade-chip ${mAffordable ? 'affordable' : (assault.multishotLevel === 3 ? 'maxed' : '')}" data-upgrade="spread" title="Spread Level ${assault.multishotLevel} (${mCost})">
+      <span class="hotkey-badge">[2]</span><span class="upg-icon">💥</span> <span class="upg-name">Spread</span> <span class="upg-lvl"><span class="upg-lvl-word">Lvl </span>${assault.multishotLevel}</span> <span class="upg-cost">(${mCost})</span>
+    </button>
+    <button type="button" class="upgrade-chip ${fAffordable ? 'affordable' : (assault.fortifyLevel === 3 ? 'maxed' : '')}" data-upgrade="fortify" title="Fortify Level ${assault.fortifyLevel} (${fCost})">
+      <span class="hotkey-badge">[3]</span><span class="upg-icon">🛡️</span> <span class="upg-name">Fortify</span> <span class="upg-lvl"><span class="upg-lvl-word">Lvl </span>${assault.fortifyLevel}</span> <span class="upg-cost">(${fCost})</span>
+    </button>
+  `;
+
+  bar.querySelectorAll('.upgrade-chip').forEach(btn => {
+    const handler = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const type = btn.getAttribute('data-upgrade');
+      assault.buyUpgrade(type);
+    };
+    btn.onclick = handler;
+    btn.onpointerdown = (e) => { e.stopPropagation(); };
+    btn.onmousedown = (e) => { e.stopPropagation(); };
+    btn.ontouchstart = (e) => { e.stopPropagation(); };
+  });
+}
+
+function renderAssaultHUDNumbers() {
+  const w = document.getElementById('hv-wave');
+  if (w) w.textContent = `${assault.wave} / ${assault.totalWaves}`;
+
+  const pts = document.getElementById('hv-points');
+  if (pts) pts.textContent = assault.points;
+
+  const hb = document.getElementById('healthbar');
+  if (hb) hb.style.width = clamp((assault.health / (assault.maxHealth || 100)) * 100, 0, 100) + '%';
+
+  if (assault.boss) {
+    const bb = document.getElementById('bossbar');
+    if (bb) bb.style.width = clamp((assault.boss.hp / assault.boss.maxHp) * 100, 0, 100) + '%';
+
+    const bhud = document.getElementById('boss-hud');
+    const tag = document.getElementById('boss-phase-tag');
+    if (bhud && tag) {
+      const phase = assault.boss.phase;
+      bhud.className = `boss-phase-${phase}`;
+      if (phase === 1) tag.textContent = 'PHASE 1 // MISSILE BARRAGE';
+      else if (phase === 2) tag.textContent = 'PHASE 2 // DRONE LAUNCHER';
+      else tag.textContent = 'PHASE 3 // HYPER OVERDRIVE';
+    }
+  }
+
+  renderUpgradesHTML();
+}
+
+function showAssaultEnd(win) {
+  removeWaveAnnouncement();
+  panel.innerHTML = `
+    <h1 class="title ${win ? 'victory-title' : 'loss-title'}">${win ? 'VICTORY SECURED' : 'BASE LOST'}</h1>
+    <div id="gate">${gateSVG('assault')}</div>
+    <div class="stat-row">
+      <div class="stat"><span class="num">${assault.wave}</span><span class="lbl">Waves</span></div>
+      <div class="stat"><span class="num">${assault.kills}</span><span class="lbl">Kills</span></div>
+      <div class="stat"><span class="num">${assault.points}</span><span class="lbl">Score</span></div>
+    </div>
+    <p class="desc">${win ? 'The Leviathan Flagship has been shattered! The sector is saved.' : 'The base fell before the enemy invasion was repelled.'}</p>
+    <button id="btn-retry2">${win ? 'Play Again' : 'Retry Defense'}</button>
+  `;
+  overlay.classList.remove('hidden');
+  document.getElementById('btn-retry2').addEventListener('click', () => {
+    if (typeof requestFullscreenMode === 'function') requestFullscreenMode();
+    overlay.classList.add('hidden'); assault.start();
+  });
+}
+
+/* ---------------------------------------------------------
+   Sprite & Visual Drawing Functions
+--------------------------------------------------------- */
+function drawBaseStructure(ctx, W, H, baseX, turretR, health, healthFlashTimer) {
+  const wallX = baseX + turretR + 6;
+  const wallW = 16;
+  const healthPct = Math.max(0, Math.min(100, health)) / 100;
+  const now = performance.now();
+
+  // Dynamic Base Health & Flash Color Indicator
+  let energyColor = 'rgba(77, 216, 255, 0.85)';
+  let glowColor = '#4dd8ff';
+
+  if (healthFlashTimer > 0) {
+    // Green Health Pickup Flash Glow Override
+    const healPulse = 0.5 + Math.sin(now * 0.02) * 0.5;
+    glowColor = '#4dff88';
+    energyColor = `rgba(77, 255, 136, ${0.7 + healPulse * 0.3})`;
+  } else if (healthPct <= 0.25) {
+    // Flash Red Alarm when almost destroyed (health <= 25%)
+    const dangerFlash = Math.abs(Math.sin(now * 0.014));
+    glowColor = dangerFlash > 0.3 ? '#ff1744' : '#660015';
+    energyColor = `rgba(255, 23, 68, ${0.35 + dangerFlash * 0.65})`;
+  } else if (healthPct <= 0.5) {
+    energyColor = 'rgba(255, 176, 32, 0.9)';
+    glowColor = '#ffb020';
+  }
+
+  ctx.save();
+
+  // ---------------------------------------------------------
+  // 1. SOLID BASE INTERIOR BULKHEAD BACKGROUND (x: 0 to wallX - wallW)
+  // ---------------------------------------------------------
+  const baseGrad = ctx.createLinearGradient(0, 0, wallX - wallW, 0);
+  baseGrad.addColorStop(0, '#04050a');
+  baseGrad.addColorStop(0.5, '#090d19');
+  baseGrad.addColorStop(1, '#0e1426');
+  ctx.fillStyle = baseGrad;
+  ctx.fillRect(0, HUD_HEIGHT, wallX - wallW, H - HUD_HEIGHT);
+
+  // Floor Grid Lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+  ctx.lineWidth = 1;
+  const gridSize = 24;
+  for (let gx = 0; gx < wallX - wallW; gx += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(gx, HUD_HEIGHT);
+    ctx.lineTo(gx, H);
+    ctx.stroke();
+  }
+  for (let gy = HUD_HEIGHT; gy < H; gy += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(wallX - wallW, gy);
+    ctx.stroke();
+  }
+
+  // Vertical Energy Conduit Pipes
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+  ctx.fillRect(18, HUD_HEIGHT, 6, H - HUD_HEIGHT);
+  ctx.fillRect(52, HUD_HEIGHT, 8, H - HUD_HEIGHT);
+
+  // Active Energy Conduit Glow Channel LEDs
+  ctx.save();
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = (healthFlashTimer > 0 || healthPct <= 0.25) ? 12 : 6;
+  ctx.fillStyle = energyColor;
+  const pulseAlpha = (healthFlashTimer > 0 || healthPct <= 0.25) 
+    ? 0.55 + Math.sin(now * 0.016) * 0.4
+    : 0.35 + Math.sin(now * 0.004) * 0.12;
+  ctx.globalAlpha = Math.max(0.1, pulseAlpha);
+  ctx.fillRect(19, HUD_HEIGHT, 4, H - HUD_HEIGHT);
+  ctx.fillRect(54, HUD_HEIGHT, 4, H - HUD_HEIGHT);
+  ctx.restore();
+
+  // ---------------------------------------------------------
+  // 2. RECESSED TURRET SLIDER RAIL TRACK (Around baseX)
+  // ---------------------------------------------------------
+  const railX = baseX - 8;
+  const railW = 16;
+  ctx.fillStyle = '#050711';
+  ctx.fillRect(railX, HUD_HEIGHT, railW, H - HUD_HEIGHT);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(railX, HUD_HEIGHT, railW, H - HUD_HEIGHT);
+
+  // Gear Notch Ribs along slider track
+  ctx.fillStyle = '#171e30';
+  for (let ry = HUD_HEIGHT + 10; ry < H; ry += 16) {
+    ctx.fillRect(railX + 2, ry, 3, 6);
+    ctx.fillRect(railX + railW - 5, ry, 3, 6);
+  }
+
+  // ---------------------------------------------------------
+  // 3. HEAVY FORTIFIED OUTER WALL (Right Wall Section)
+  // ---------------------------------------------------------
+  // Wall Body Steel Gradient
+  const wallGrad = ctx.createLinearGradient(wallX - wallW, 0, wallX, 0);
+  wallGrad.addColorStop(0, '#101525');
+  wallGrad.addColorStop(0.4, '#1d263f');
+  wallGrad.addColorStop(0.8, '#2d3b61');
+  wallGrad.addColorStop(1, '#161c2e');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(wallX - wallW, HUD_HEIGHT, wallW, H - HUD_HEIGHT);
+
+  // Interlocking Armor Plate Panels & Horizontal Bevel Seams
+  const panelH = 60;
+  for (let py = HUD_HEIGHT; py < H; py += panelH) {
+    // Horizontal Panel Seam Shadow
+    ctx.strokeStyle = '#060812';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(wallX - wallW, py);
+    ctx.lineTo(wallX, py);
+    ctx.stroke();
+
+    // Structural Rivet Dots
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.fillRect(wallX - wallW + 3, py + 6, 2, 2);
+    ctx.fillRect(wallX - wallW + 3, py + panelH - 8, 2, 2);
+
+    // Bevel Highlight Line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wallX - wallW + 2, py + 2);
+    ctx.lineTo(wallX - 2, py + 2);
+    ctx.stroke();
+  }
+
+  // ---------------------------------------------------------
+  // 4. FRONT ENERGY BARRIER SEAM & DEFENSE NODE POD LEDs
+  // ---------------------------------------------------------
+  // Glowing Vertical Energy Barrier LED Line on Wall Edge
+  ctx.save();
+  ctx.strokeStyle = glowColor;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = (healthFlashTimer > 0) ? 26 : (healthPct <= 0.25 ? 20 : 14);
+  ctx.lineWidth = (healthFlashTimer > 0 || healthPct <= 0.25) ? 4 : 3;
+  ctx.beginPath();
+  ctx.moveTo(wallX, HUD_HEIGHT);
+  ctx.lineTo(wallX, H);
+  ctx.stroke();
+  ctx.restore();
+
+  // Defense Node Emitter Pods along front wall
+  const podPositions = [HUD_HEIGHT + 45, (HUD_HEIGHT + H) / 2, H - 45];
+  for (const py of podPositions) {
+    ctx.save();
+    ctx.fillStyle = '#141a2a';
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth = 1.4;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = (healthFlashTimer > 0) ? 16 : (healthPct <= 0.25 ? 12 : 8);
+
+    ctx.beginPath();
+    ctx.moveTo(wallX - 4, py - 12);
+    ctx.lineTo(wallX + 5, py - 7);
+    ctx.lineTo(wallX + 5, py + 7);
+    ctx.lineTo(wallX - 4, py + 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Node Crystal LED Lens Indicator
+    ctx.fillStyle = glowColor;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = (healthFlashTimer > 0) ? 14 : (healthPct <= 0.25 ? 10 : 6);
+    ctx.beginPath();
+    ctx.arc(wallX + 1, py, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawMissile(ctx, m) {
+  ctx.save();
+  ctx.translate(m.x, m.y);
+
+  const angle = Math.atan2(m.vy, m.vx);
+  ctx.rotate(angle);
+
+  // Thruster Flame
+  ctx.fillStyle = '#ffb020';
+  ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(-m.r, -m.r * 0.4);
+  ctx.lineTo(-m.r - (6 + Math.random() * 4), 0);
+  ctx.lineTo(-m.r, m.r * 0.4);
+  ctx.fill();
+
+  // Missile Body
+  ctx.fillStyle = '#ff1744';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.2;
+  ctx.shadowColor = '#ff1744'; ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.moveTo(m.r * 1.4, 0);
+  ctx.lineTo(-m.r * 0.6, -m.r * 0.6);
+  ctx.lineTo(-m.r, -m.r * 0.4);
+  ctx.lineTo(-m.r, m.r * 0.4);
+  ctx.lineTo(-m.r * 0.6, m.r * 0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Nose Sensor Tip
+  ctx.fillStyle = '#ffff00';
+  ctx.beginPath();
+  ctx.arc(m.r * 0.6, 0, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawPowerup(ctx, d) {
+  ctx.save();
+  ctx.translate(d.x, d.y);
+
+  if (d.inBase && d.baseTimer != null) {
+    ctx.globalAlpha = Math.max(0.15, 1 - (d.baseTimer / 1000));
+  }
+
+  let color = '#4dff88';
+  let icon = '✚';
+  if (d.type === 'overcharge') {
+    color = 'var(--energy)';
+    icon = '⚡';
+  } else if (d.type === 'shield') {
+    color = 'var(--hazard)';
+    icon = '🛡️';
+  }
+
+  const c = getComputedColor(color.replace('var(', '').replace(')', ''));
+  ctx.shadowColor = c;
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.arc(0, 0, d.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#05060e';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icon, 0, 1);
+
+  ctx.restore();
+}
+
+function drawTurret(ctx, x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const now = performance.now();
+  const playerColor = getComputedColor('--player') || '#ff3d81';
+  const energyColor = getComputedColor('--energy') || '#ffb020';
+  const hazardColor = getComputedColor('--hazard') || '#4dd8ff';
+
+  const multishot = (typeof assault !== 'undefined' && assault.multishotLevel) || 1;
+  const laserLvl = (typeof assault !== 'undefined' && assault.laserLevel) || 1;
+  const isOvercharged = (typeof assault !== 'undefined' && assault.overchargeTimer > 0);
+  const timeSinceShot = now - ((typeof assault !== 'undefined' && assault.lastShotTime) || 0);
+
+  // Mechanical Recoil calculation (quick punch back then smooth return)
+  let recoilX = 0;
+  if (timeSinceShot < 140) {
+    const recoilFactor = Math.sin((timeSinceShot / 140) * Math.PI);
+    recoilX = -recoilFactor * (multishot === 3 ? 5 : 3.5);
+  }
+
+  const pulse = Math.sin(now * 0.006) * 0.15 + 0.85;
+  const themeGlow = isOvercharged ? energyColor : (laserLvl >= 2 ? hazardColor : playerColor);
+
+  // ---------------------------------------------------------
+  // 1. REAR BASE MOUNT & HEAVY TRACK RAILS (Attached to wall)
+  // ---------------------------------------------------------
+  ctx.save();
+  const railX = -r * 1.05;
+  const railW = 9;
+  const railH = r * 2.3;
+
+  // Rail track base shadow & fill
+  ctx.fillStyle = '#060812';
+  ctx.fillRect(railX - 3, -railH * 0.5 - 2, railW + 3, railH + 4);
+
+  // Metallic rail plates
+  const railGrad = ctx.createLinearGradient(railX, 0, railX + railW, 0);
+  railGrad.addColorStop(0, '#0e1222');
+  railGrad.addColorStop(0.5, '#222b45');
+  railGrad.addColorStop(1, '#0b0f1d');
+  ctx.fillStyle = railGrad;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.rect(railX, -railH * 0.5, railW, railH);
+  ctx.fill();
+  ctx.stroke();
+
+  // Rail rivet bolts & vertical hydraulic indicator
+  ctx.fillStyle = themeGlow;
+  ctx.globalAlpha = 0.7;
+  ctx.fillRect(railX + 2, -railH * 0.4, 2, 3);
+  ctx.fillRect(railX + 2, railH * 0.4 - 3, 2, 3);
+  ctx.globalAlpha = 1.0;
+
+  // Hydraulic Strut Pistons connecting Rail to Main Turret Base
+  ctx.fillStyle = '#1a2035';
+  ctx.fillRect(railX + railW, -r * 0.55, r * 0.45, 4);
+  ctx.fillRect(railX + railW, r * 0.55 - 4, r * 0.45, 4);
+
+  // Shiny piston chrome shaft
+  ctx.fillStyle = '#7a89b0';
+  ctx.fillRect(railX + railW + 2, -r * 0.55 + 1, r * 0.35, 2);
+  ctx.fillRect(railX + railW + 2, r * 0.55 - 3, r * 0.35, 2);
+  ctx.restore();
+
+  // ---------------------------------------------------------
+  // 2. OVERCHARGE / POWER-UP REINFORCED ENERGY FIELD
+  // ---------------------------------------------------------
+  if (isOvercharged) {
+    ctx.save();
+    ctx.strokeStyle = energyColor;
+    ctx.shadowColor = energyColor;
+    ctx.shadowBlur = 20 * pulse;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------
+  // 3. HEAVY TURRET CHASSIS BASE (Octagonal Base Plate)
+  // ---------------------------------------------------------
+  ctx.save();
+  ctx.shadowColor = themeGlow;
+  ctx.shadowBlur = 14 * pulse;
+
+  // Outer Octagonal Base Outline
+  const baseR = r * 0.95;
+  ctx.fillStyle = '#0c101d';
+  ctx.strokeStyle = themeGlow;
+  ctx.lineWidth = 1.8;
+
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4 + Math.PI / 8;
+    const bx = Math.cos(angle) * baseR;
+    const by = Math.sin(angle) * baseR;
+    if (i === 0) ctx.moveTo(bx, by);
+    else ctx.lineTo(bx, by);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner Metallic Bevel Ring
+  ctx.shadowBlur = 0;
+  const chassisGrad = ctx.createRadialGradient(-r * 0.2, -r * 0.2, 2, 0, 0, baseR);
+  chassisGrad.addColorStop(0, '#2a3454');
+  chassisGrad.addColorStop(0.6, '#151b2d');
+  chassisGrad.addColorStop(1, '#090d18');
+  ctx.fillStyle = chassisGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, baseR * 0.78, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Armor Sector Plate Insets
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -baseR * 0.75); ctx.lineTo(0, baseR * 0.75);
+  ctx.moveTo(-baseR * 0.75, 0); ctx.lineTo(baseR * 0.75, 0);
+  ctx.stroke();
+  ctx.restore();
+
+  // ---------------------------------------------------------
+  // 4. CANNON BARRELS & RECOIL ASSEMBLY (Draw BEFORE Main Dome)
+  // ---------------------------------------------------------
+  ctx.save();
+  ctx.translate(recoilX, 0); // Apply firing recoil displacement
+
+  const barrelLength = r * 1.45;
+  const barrelGlow = laserLvl >= 2 ? hazardColor : themeGlow;
+
+  // Helper to draw a single heavy cannon barrel
+  const drawBarrel = (byOffset, bw, bl, isCenter) => {
+    ctx.save();
+    // Barrel Shadow
+    ctx.fillStyle = '#05070e';
+    ctx.fillRect(r * 0.2, byOffset - bw / 2 + 1, bl, bw);
+
+    // Barrel Steel Shroud Gradient
+    const bGrad = ctx.createLinearGradient(0, byOffset - bw / 2, 0, byOffset + bw / 2);
+    bGrad.addColorStop(0, '#3a4768');
+    bGrad.addColorStop(0.3, '#1f273b');
+    bGrad.addColorStop(0.7, '#121724');
+    bGrad.addColorStop(1, '#0a0d16');
+    ctx.fillStyle = bGrad;
+    ctx.fillRect(r * 0.25, byOffset - bw / 2, bl, bw);
+
+    // Reinforced Barrel Clamp / Heat Sink Rings
+    ctx.fillStyle = '#101524';
+    ctx.fillRect(r * 0.5, byOffset - bw / 2 - 1, 4, bw + 2);
+    ctx.fillRect(r * 0.85, byOffset - bw / 2 - 1, 4, bw + 2);
+
+    // Laser / Energy Optics Channel inside barrel
+    if (laserLvl >= 2) {
+      ctx.fillStyle = hazardColor;
+      ctx.shadowColor = hazardColor;
+      ctx.shadowBlur = 8;
+      ctx.fillRect(r * 0.3, byOffset - 1, bl - 4, 2);
+    } else {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.fillRect(r * 0.3, byOffset - 0.7, bl - 4, 1.4);
+    }
+
+    // Barrel Muzzle Tip Shroud
+    ctx.fillStyle = '#2d3752';
+    ctx.fillRect(r * 0.25 + bl - 3, byOffset - bw / 2 - 0.5, 4, bw + 1);
+
+    // Muzzle Energy Glow Cap
+    ctx.shadowColor = barrelGlow;
+    ctx.shadowBlur = 10 * pulse;
+    ctx.fillStyle = barrelGlow;
+    ctx.fillRect(r * 0.25 + bl, byOffset - bw / 2 + 0.5, 2.5, bw - 1);
+
+    ctx.restore();
+  };
+
+  if (multishot === 1) {
+    // Single Heavy Cannon Barrel
+    drawBarrel(0, 7.5, barrelLength, true);
+  } else if (multishot === 2) {
+    // Dual Twin Parallel Barrels
+    drawBarrel(-6.5, 5.5, barrelLength * 0.95, false);
+    drawBarrel(6.5, 5.5, barrelLength * 0.95, false);
+  } else {
+    // Triple Spread Cannon Array (Central Heavy + 2 Angled Flank Barrels)
+    ctx.save();
+    ctx.rotate(-0.15);
+    drawBarrel(-5, 4.8, barrelLength * 0.88, false);
+    ctx.restore();
+
+    ctx.save();
+    ctx.rotate(0.15);
+    drawBarrel(5, 4.8, barrelLength * 0.88, false);
+    ctx.restore();
+
+    drawBarrel(0, 6.5, barrelLength, true);
+  }
+
+  ctx.restore(); // end recoil block
+
+  // ---------------------------------------------------------
+  // 5. MAIN TURRET DOME HOUSING & REACTOR CORE
+  // ---------------------------------------------------------
+  ctx.save();
+  ctx.shadowColor = themeGlow;
+  ctx.shadowBlur = 14 * pulse;
+
+  // Sleek Armored Housing Pod (Forward Pointing Polygon)
+  const domeGrad = ctx.createLinearGradient(-r * 0.6, -r * 0.6, r * 0.7, r * 0.6);
+  domeGrad.addColorStop(0, '#2d3856');
+  domeGrad.addColorStop(0.4, '#192033');
+  domeGrad.addColorStop(0.8, '#0f1422');
+  domeGrad.addColorStop(1, '#070a12');
+
+  ctx.fillStyle = domeGrad;
+  ctx.strokeStyle = themeGlow;
+  ctx.lineWidth = 1.6;
+
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.75, -r * 0.45);
+  ctx.lineTo(-r * 0.3, -r * 0.65);
+  ctx.lineTo(r * 0.45, -r * 0.45);
+  ctx.lineTo(r * 0.75, 0); // Nose apex pointing right
+  ctx.lineTo(r * 0.45, r * 0.45);
+  ctx.lineTo(-r * 0.3, r * 0.65);
+  ctx.lineTo(-r * 0.75, r * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Side Heat Vents (Top & Bottom Vents)
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = isOvercharged ? energyColor : '#090d18';
+  ctx.strokeStyle = themeGlow;
+  ctx.lineWidth = 0.8;
+  for (let side = -1; side <= 1; side += 2) {
+    for (let vent = 0; vent < 3; vent++) {
+      const vx = -r * 0.35 + vent * 6;
+      const vy = side * (r * 0.48);
+      ctx.fillRect(vx, vy - 1, 4, 2);
+    }
+  }
+
+  // Metallic Armor Plating Center Cutout Accent
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.4, -r * 0.35);
+  ctx.lineTo(r * 0.2, -r * 0.25);
+  ctx.lineTo(r * 0.4, 0);
+  ctx.lineTo(r * 0.2, r * 0.25);
+  ctx.lineTo(-r * 0.4, r * 0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // Glowing Reactor Core Orb in Center of Housing
+  const coreR = r * 0.32;
+  const coreGrad = ctx.createRadialGradient(-r * 0.1, 0, 1, -r * 0.1, 0, coreR);
+  coreGrad.addColorStop(0, '#ffffff');
+  coreGrad.addColorStop(0.4, themeGlow);
+  coreGrad.addColorStop(1, 'rgba(10, 14, 26, 0.9)');
+
+  ctx.shadowColor = themeGlow;
+  ctx.shadowBlur = 18 * pulse;
+  ctx.fillStyle = coreGrad;
+  ctx.beginPath();
+  ctx.arc(-r * 0.1, 0, coreR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Core Lens Grid Ring
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(-r * 0.1, 0, coreR * 0.6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Forward Target Acquisition Sensor Optic Lens / Visor (at turret nose)
+  ctx.fillStyle = themeGlow;
+  ctx.shadowColor = themeGlow;
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(r * 0.5, 0, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawEnemy(ctx, e) {
+  ctx.save();
+  ctx.translate(e.x, e.y);
+
+  const isDamaged = e.hp != null && e.maxHp != null && e.hp < e.maxHp;
+  let pulse = Math.sin((e.t || 0) * 8) * 0.15 + 0.85;
+
+  let colorPrimary = '#ff1744';
+  let colorGlow = 'rgba(255,23,68,0.85)';
+  let colorCore = '#ff5252';
+
+  if (e.type === 'kamikaze') {
+    colorPrimary = '#ffab00';
+    colorGlow = 'rgba(255,171,0,0.85)';
+    colorCore = '#ffd600';
+  } else if (e.type === 'cruiser') {
+    colorPrimary = '#e0115f';
+    colorGlow = 'rgba(224,17,95,0.85)';
+    colorCore = '#e040fb';
+  }
+
+  // Thruster Flame
+  ctx.save();
+  ctx.shadowColor = colorPrimary; ctx.shadowBlur = 12 * pulse;
+  ctx.fillStyle = colorPrimary;
+  ctx.beginPath();
+  const fLen = e.r * (0.8 + Math.random() * 0.4);
+  ctx.moveTo(e.r * 0.6, -e.r * 0.3); ctx.lineTo(e.r * 0.6 + fLen, 0); ctx.lineTo(e.r * 0.6, e.r * 0.3);
+  ctx.fill();
+  ctx.restore();
+
+  // Outer Hull
+  ctx.shadowColor = colorGlow; ctx.shadowBlur = 16 * pulse;
+  ctx.strokeStyle = colorPrimary; ctx.lineWidth = 2;
+  ctx.fillStyle = '#0b0d18';
+
+  ctx.beginPath();
+  if (e.type === 'kamikaze') {
+    ctx.moveTo(-e.r * 1.5, 0);
+    ctx.lineTo(e.r * 0.8, -e.r * 0.7);
+    ctx.lineTo(e.r * 0.4, 0);
+    ctx.lineTo(e.r * 0.8, e.r * 0.7);
+  } else if (e.type === 'cruiser') {
+    ctx.moveTo(-e.r * 1.3, 0);
+    ctx.lineTo(-e.r * 0.7, -e.r * 0.9);
+    ctx.lineTo(e.r * 0.9, -e.r * 0.9);
+    ctx.lineTo(e.r * 0.6, 0);
+    ctx.lineTo(e.r * 0.9, e.r * 0.9);
+    ctx.lineTo(-e.r * 0.7, e.r * 0.9);
+  } else {
+    ctx.moveTo(-e.r * 1.4, 0);
+    ctx.lineTo(-e.r * 0.3, -e.r * 0.4);
+    ctx.lineTo(e.r * 0.9, -e.r * 0.9);
+    ctx.lineTo(e.r * 0.2, -e.r * 0.25);
+    ctx.lineTo(e.r * 0.7, 0);
+    ctx.lineTo(e.r * 0.2, e.r * 0.25);
+    ctx.lineTo(e.r * 0.9, e.r * 0.9);
+    ctx.lineTo(-e.r * 0.3, e.r * 0.4);
+  }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Cruiser Frontal Arc Shield Plate
+  if (e.type === 'cruiser') {
+    ctx.save();
+    ctx.strokeStyle = getComputedColor('--hazard');
+    ctx.shadowColor = getComputedColor('--hazard'); ctx.shadowBlur = 10;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, e.r * 1.15, Math.PI * 0.7, Math.PI * 1.3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Glowing Eye/Visor
+  ctx.shadowColor = colorCore; ctx.shadowBlur = 10 * pulse;
+  ctx.fillStyle = colorCore;
+  ctx.beginPath();
+  ctx.ellipse(-e.r * 0.35, 0, e.r * 0.3, e.r * 0.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Health Bar for Cruisers
+  if (e.type === 'cruiser' && isDamaged) {
+    ctx.save();
+    const bw = e.r * 1.8, bh = 3.5;
+    const bx = e.x - bw / 2, by = e.y - e.r - 10;
+    ctx.fillStyle = 'rgba(8, 10, 20, 0.8)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = colorPrimary;
+    ctx.fillRect(bx, by, bw * (e.hp / e.maxHp), bh);
+    ctx.restore();
+  }
+}
+
+/* ---------------------------------------------------------
+   Detailed & Threatening LEVIATHAN FLAGSHIP Model
+--------------------------------------------------------- */
+function drawBoss(ctx, b) {
+  ctx.save();
+  ctx.translate(b.x, b.y);
+
+  const pulse = Math.sin((b.timer || 0) * 8) * 0.15 + 0.85;
+
+  let coreColor = '#ff1744'; // Phase 1: Crimson Red (Missiles)
+  let glowColor = 'rgba(255, 23, 68, 0.85)';
+  if (b.phase === 2) {
+    coreColor = '#ffb020'; // Phase 2: Amber Yellow (Drones)
+    glowColor = 'rgba(255, 176, 32, 0.7)';
+  } else if (b.phase === 3) {
+    coreColor = '#e040fb'; // Phase 3: Hyper Magenta / Glitch Purple
+    glowColor = 'rgba(224, 64, 251, 0.9)';
+  }
+
+  // Quad Thruster Plumes
+  ctx.save();
+  ctx.shadowColor = coreColor; ctx.shadowBlur = 24 * pulse;
+  ctx.fillStyle = coreColor;
+  const fL = b.r * (0.9 + Math.random() * 0.45);
+  ctx.beginPath();
+  // Engine 1 & 2 (Upper)
+  ctx.moveTo(b.r * 0.8, -b.r * 0.55); ctx.lineTo(b.r * 0.8 + fL, -b.r * 0.45); ctx.lineTo(b.r * 0.8, -b.r * 0.35);
+  ctx.moveTo(b.r * 0.8, -b.r * 0.25); ctx.lineTo(b.r * 0.8 + fL * 0.8, -b.r * 0.18); ctx.lineTo(b.r * 0.8, -b.r * 0.12);
+  // Engine 3 & 4 (Lower)
+  ctx.moveTo(b.r * 0.8, b.r * 0.12); ctx.lineTo(b.r * 0.8 + fL * 0.8, b.r * 0.18); ctx.lineTo(b.r * 0.8, b.r * 0.25);
+  ctx.moveTo(b.r * 0.8, b.r * 0.35); ctx.lineTo(b.r * 0.8 + fL, b.r * 0.45); ctx.lineTo(b.r * 0.8, b.r * 0.55);
+  ctx.fill();
+  ctx.restore();
+
+  // Spiked Multi-Segment Mandibles & Wings Outer Outline
+  ctx.shadowColor = glowColor; ctx.shadowBlur = 28 * pulse;
+  ctx.strokeStyle = coreColor; ctx.lineWidth = 2.5;
+  ctx.fillStyle = '#060712';
+
+  ctx.beginPath();
+  ctx.moveTo(-b.r * 1.85, 0);              // Threatening Nose Mandible Blade Tip
+  ctx.lineTo(-b.r * 1.1, -b.r * 0.45);
+  ctx.lineTo(-b.r * 1.5, -b.r * 0.85);     // Upper Front Mandible Blade
+  ctx.lineTo(-b.r * 0.6, -b.r * 0.8);
+  ctx.lineTo(-b.r * 1.1, -b.r * 1.25);     // Upper Outer Wing Blade
+  ctx.lineTo(b.r * 0.2, -b.r * 1.1);
+  ctx.lineTo(b.r * 0.85, -b.r * 0.65);     // Top Rear Wing Pod
+  ctx.lineTo(b.r * 0.5, -b.r * 0.3);
+  ctx.lineTo(b.r * 0.8, 0);               // Rear Center Exhaust Segment
+  ctx.lineTo(b.r * 0.5, b.r * 0.3);
+  ctx.lineTo(b.r * 0.85, b.r * 0.65);      // Bottom Rear Wing Pod
+  ctx.lineTo(b.r * 0.2, b.r * 1.1);
+  ctx.lineTo(-b.r * 1.1, b.r * 1.25);      // Lower Outer Wing Blade
+  ctx.lineTo(-b.r * 0.6, b.r * 0.8);
+  ctx.lineTo(-b.r * 1.5, b.r * 0.85);      // Lower Front Mandible Blade
+  ctx.lineTo(-b.r * 1.1, b.r * 0.45);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Armor Panel Overlays
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = b.phase === 3 ? '#230e2b' : '#141829';
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1.5;
+
+  ctx.beginPath();
+  ctx.moveTo(-b.r * 0.8, 0);
+  ctx.lineTo(-b.r * 0.2, -b.r * 0.55);
+  ctx.lineTo(b.r * 0.4, -b.r * 0.5);
+  ctx.lineTo(b.r * 0.2, 0);
+  ctx.lineTo(b.r * 0.4, b.r * 0.5);
+  ctx.lineTo(-b.r * 0.2, b.r * 0.55);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Phase 1 Hangar Bay Doors
+  if (b.phase === 1) {
+    ctx.fillStyle = '#ffab00';
+    ctx.shadowColor = '#ffab00'; ctx.shadowBlur = 10;
+    ctx.fillRect(-b.r * 0.3, -b.r * 0.45, 14, 5);
+    ctx.fillRect(-b.r * 0.3, b.r * 0.4, 14, 5);
+  }
+
+  // Phase 2 & 3 Missile Launcher Pod Sensors
+  if (b.phase >= 2) {
+    ctx.fillStyle = '#ff1744';
+    ctx.shadowColor = '#ff1744'; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(-b.r * 0.5, -b.r * 0.7, 4, 0, Math.PI * 2);
+    ctx.arc(-b.r * 0.5, b.r * 0.7, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Dual Glowing Energy Cores
+  ctx.shadowColor = coreColor; ctx.shadowBlur = 20 * pulse;
+  ctx.fillStyle = coreColor;
+  ctx.beginPath();
+  ctx.ellipse(-b.r * 0.35, -b.r * 0.2, b.r * 0.22, b.r * 0.12, 0, 0, Math.PI * 2);
+  ctx.ellipse(-b.r * 0.35, b.r * 0.2, b.r * 0.22, b.r * 0.12, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/* ==========================================================================
+   DEBUG MODE CONTROLS (Comment out this entire block for production release)
+   ========================================================================== */
+(function initAssaultDebugControls() {
+  if (typeof document === 'undefined') return;
+
+  // 1. Inject debug styles
+  const debugStyle = document.createElement('style');
+  debugStyle.id = 'assault-debug-styles';
+  debugStyle.textContent = `
+    .mode-tag { position: relative; }
+    .debug-invisible-btn {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      z-index: 30;
+      padding: 0;
+      margin: 0;
+    }
+    #debug-dropdown {
+      position: fixed;
+      top: 58px;
+      right: 18px;
+      width: 260px;
+      background: rgba(8, 12, 26, 0.96);
+      border: 1px solid var(--energy);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(255, 176, 32, 0.3);
+      backdrop-filter: blur(12px);
+      z-index: 9999;
+      font-family: var(--font-display);
+      color: #eef1fa;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      user-select: none;
+    }
+    #debug-dropdown.hidden {
+      display: none !important;
+    }
+    .debug-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      padding-bottom: 8px;
+    }
+    .debug-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--energy);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .debug-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .debug-close-btn:hover { color: #ffffff; }
+    .debug-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .debug-section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+    .debug-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .debug-label b {
+      color: var(--energy);
+    }
+    .debug-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .debug-btn {
+      background: rgba(255, 176, 32, 0.18);
+      border: 1px solid var(--energy);
+      color: #ffffff;
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease;
+      font-family: var(--font-display);
+      padding: 0;
+      line-height: 1;
+    }
+    .debug-btn:hover { background: rgba(255, 176, 32, 0.38); transform: translateY(-1px); }
+    .debug-btn:active { transform: translateY(1px); }
+    .debug-wave-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .debug-wave-btn {
+      background: rgba(124, 92, 255, 0.18);
+      border: 1px solid var(--hazard-2);
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 8px 4px;
+      font-family: var(--font-display);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .debug-wave-btn:hover { background: rgba(124, 92, 255, 0.38); transform: translateY(-1px); }
+    .debug-wave-btn:active { transform: translateY(1px); }
+  `;
+  document.head.appendChild(debugStyle);
+
+  // 2. Create Debug Dropdown DOM
+  const dropdown = document.createElement('div');
+  dropdown.id = 'debug-dropdown';
+  dropdown.className = 'debug-dropdown hidden';
+  dropdown.innerHTML = `
+    <div class="debug-header">
+      <span class="debug-title">🛠️ Debug Controls</span>
+      <button id="debug-close-btn" class="debug-close-btn" type="button">✕</button>
+    </div>
+    
+    <div class="debug-section">
+      <div class="debug-section-title">FREE UPGRADES</div>
+      
+      <div class="debug-row">
+        <span class="debug-label">⚡ Rate Lvl: <b id="debug-val-rate">1</b></span>
+        <div class="debug-btn-group">
+          <button type="button" class="debug-btn" id="debug-rate-dec">-</button>
+          <button type="button" class="debug-btn" id="debug-rate-inc">+</button>
+        </div>
+      </div>
+      
+      <div class="debug-row">
+        <span class="debug-label">💥 Spread Lvl: <b id="debug-val-spread">1</b></span>
+        <div class="debug-btn-group">
+          <button type="button" class="debug-btn" id="debug-spread-dec">-</button>
+          <button type="button" class="debug-btn" id="debug-spread-inc">+</button>
+        </div>
+      </div>
+      
+      <div class="debug-row">
+        <span class="debug-label">🛡️ Fortify Lvl: <b id="debug-val-laser">1</b></span>
+        <div class="debug-btn-group">
+          <button type="button" class="debug-btn" id="debug-laser-dec">-</button>
+          <button type="button" class="debug-btn" id="debug-laser-inc">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="debug-section">
+      <div class="debug-section-title">WAVE JUMP</div>
+      <div class="debug-wave-group">
+        <button type="button" class="debug-wave-btn" id="debug-wave-3">Wave 3</button>
+        <button type="button" class="debug-wave-btn" id="debug-wave-boss">Boss Wave</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(dropdown);
+
+  // Prevent input bubbling to game controls
+  const stopProp = (e) => { e.stopPropagation(); };
+  ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove', 'touchend', 'mousedown', 'mousemove', 'mouseup', 'click'].forEach(evt => {
+    dropdown.addEventListener(evt, stopProp);
+  });
+
+  // Helper to update debug UI values
+  function updateDebugUI() {
+    const r = document.getElementById('debug-val-rate');
+    const s = document.getElementById('debug-val-spread');
+    const l = document.getElementById('debug-val-laser');
+    if (r) r.textContent = assault.fireRateLevel;
+    if (s) s.textContent = assault.multishotLevel;
+    if (l) l.textContent = assault.fortifyLevel;
+  }
+
+  // Event handlers
+  document.getElementById('debug-close-btn').addEventListener('click', () => {
+    dropdown.classList.add('hidden');
+  });
+
+  document.getElementById('debug-rate-dec').addEventListener('click', () => {
+    assault.fireRateLevel = clamp(assault.fireRateLevel - 1, 1, 3);
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+    updateDebugUI();
+  });
+  document.getElementById('debug-rate-inc').addEventListener('click', () => {
+    assault.fireRateLevel = clamp(assault.fireRateLevel + 1, 1, 3);
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+    updateDebugUI();
+  });
+
+  document.getElementById('debug-spread-dec').addEventListener('click', () => {
+    assault.multishotLevel = clamp(assault.multishotLevel - 1, 1, 3);
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+    updateDebugUI();
+  });
+  document.getElementById('debug-spread-inc').addEventListener('click', () => {
+    assault.multishotLevel = clamp(assault.multishotLevel + 1, 1, 3);
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+    updateDebugUI();
+  });
+
+  document.getElementById('debug-laser-dec').addEventListener('click', () => {
+    assault.fortifyLevel = clamp(assault.fortifyLevel - 1, 1, 3);
+    assault.maxHealth = assault.fortifyLevel === 1 ? 100 : (assault.fortifyLevel === 2 ? 150 : 200);
+    assault.health = Math.min(assault.maxHealth, assault.health);
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+    updateDebugUI();
+  });
+  document.getElementById('debug-laser-inc').addEventListener('click', () => {
+    assault.fortifyLevel = clamp(assault.fortifyLevel + 1, 1, 3);
+    assault.maxHealth = assault.fortifyLevel === 1 ? 100 : (assault.fortifyLevel === 2 ? 150 : 200);
+    assault.health = Math.min(assault.maxHealth, assault.health + 50);
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+    updateDebugUI();
+  });
+
+  // Wave Jump logic
+  assault.jumpToWave = function (w) {
+    if (this.state !== 'playing') this.state = 'playing';
+    if (typeof overlay !== 'undefined' && overlay) overlay.classList.add('hidden');
+    this.wave = w;
+    this.enemies = [];
+    this.missiles = [];
+    this.enemyBolts = [];
+    this.bolts = [];
+    this.drops = [];
+    this.particles = [];
+    removeBossHUD();
+    this.beginWave();
+    if (typeof renderHUD === 'function') renderHUD();
+    if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+  };
+
+  document.getElementById('debug-wave-3').addEventListener('click', () => {
+    assault.jumpToWave(3);
+    updateDebugUI();
+  });
+  document.getElementById('debug-wave-boss').addEventListener('click', () => {
+    assault.jumpToWave(4);
+    updateDebugUI();
+  });
+
+  // Attach invisible button to #mode-tag
+  function attachInvisibleButton() {
+    const modeTag = document.getElementById('mode-tag');
+    if (!modeTag) return;
+
+    let invBtn = document.getElementById('debug-invisible-btn');
+    if (!invBtn) {
+      invBtn = document.createElement('button');
+      invBtn.id = 'debug-invisible-btn';
+      invBtn.className = 'debug-invisible-btn';
+      invBtn.setAttribute('aria-label', 'Debug Controls Trigger');
+
+      invBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (typeof mode !== 'undefined' && mode !== 'assault') return;
+        dropdown.classList.toggle('hidden');
+        updateDebugUI();
+      });
+      ['pointerdown', 'mousedown', 'touchstart'].forEach(evt => {
+        invBtn.addEventListener(evt, stopProp);
+      });
+    }
+
+    if (!modeTag.contains(invBtn)) {
+      modeTag.appendChild(invBtn);
+    }
+  }
+
+  // Hook renderHUD
+  const originalRenderHUD = window.renderHUD;
+  if (typeof originalRenderHUD === 'function') {
+    window.renderHUD = function () {
+      originalRenderHUD.apply(this, arguments);
+      if (typeof mode !== 'undefined' && mode === 'assault') {
+        attachInvisibleButton();
+      }
+    };
+  }
+
+  // Poller backup
+  setInterval(() => {
+    if (typeof mode !== 'undefined' && mode === 'assault') {
+      attachInvisibleButton();
+    }
+  }, 1000);
+})();
+/* ==========================================================================
+   END DEBUG MODE CONTROLS
+   ========================================================================== */

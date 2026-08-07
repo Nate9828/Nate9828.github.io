@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>NOVA SHIFT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="nova-shift.css">
+</head>
+
+<body>
+
+  <div id="stage">
+    <canvas id="bg"></canvas>
+    <canvas id="game"></canvas>
+  </div>
+
+  <button type="button" id="btn-fullscreen" class="fullscreen-btn" title="Toggle Fullscreen">
+    <span>⛶</span><span class="fs-label"></span>
+  </button>
+
+  <div id="hud">
+    <div class="hud-group" id="hud-left"></div>
+    <div class="hud-group" id="hud-right">
+      <span class="mode-tag" id="mode-tag">—</span>
+    </div>
+  </div>
+
+  <div id="controls-hint"></div>
+
+  <div id="overlay">
+    <div class="panel" id="panel"></div>
+  </div>
+
+  <script src="main.js"></script>
+  <script src="escape-mode.js"></script>
+  <script src="assault-mode.js"></script>
+  <script>
+    initGame();
+  </script>
+</body>
+
+</html>
