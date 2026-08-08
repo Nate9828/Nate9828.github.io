@@ -609,3 +609,63 @@ button.btn-secondary:hover {
 #wave-announcement.boss-wave .wave-subtitle {
   color: #ffa4b6;
 }
+
+/* Difficulty Selector UI */
+.diff-selector {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 16px 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.diff-btn {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.diff-btn.active {
+  border-color: var(--energy);
+  color: #ffffff;
+  background: rgba(255, 176, 32, 0.18);
+  box-shadow: 0 0 14px rgba(255, 176, 32, 0.3);
+}
+.diff-btn.locked {
+  opacity: 0.55;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+.diff-btn:hover:not(.locked) {
+  border-color: var(--energy);
+  transform: translateY(-1px);
+}
+
+.unlock-banner {
+  background: rgba(77, 255, 136, 0.15);
+  border: 1px solid #4dff88;
+  color: #4dff88;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin: 10px 0;
+  text-shadow: 0 0 10px rgba(77, 255, 136, 0.6);
+  box-shadow: 0 0 16px rgba(77, 255, 136, 0.25);
+  animation: unlockPulse 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes unlockPulse {
+  from { transform: scale(0.98); opacity: 0.85; }
+  to { transform: scale(1.02); opacity: 1; }
+}

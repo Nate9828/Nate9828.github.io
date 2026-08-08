@@ -188,17 +188,34 @@ function renderHUD(){
     modeTag.className = 'mode-tag escape';
     controlsHint.textContent = 'Move mouse/finger to steer, or use WASD / Arrows';
   } else {
+    const diffLabel = assault.selectedDifficulty === 'hard' ? ' (HARD)' : (assault.selectedDifficulty === 'endless' ? ' (ENDLESS)' : '');
     hudLeft.innerHTML = `
-      <div class="hud-chip"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves}</span></div>
+      <div class="hud-chip"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}</span></div>
       <div class="hud-chip"><span class="hud-label">Points</span><span class="hud-value" id="hv-points">${assault.points||0}</span></div>
-      <div class="hud-chip"><span class="hud-label">Base</span><div id="healthbar-wrap"><div id="healthbar" style="width:${clamp(assault.health,0,100)}%"></div></div></div>
+      <div class="hud-chip"><span class="hud-label">Base</span><div id="healthbar-wrap"><div id="healthbar" style="width:${clamp((assault.health / (assault.maxHealth || 100)) * 100, 0, 100)}%"></div></div></div>
       <div class="upgrade-bar" id="upgrade-bar"></div>
     `;
-    modeTag.textContent = 'Assault Mode';
+    modeTag.textContent = 'Assault Mode' + diffLabel;
     modeTag.className = 'mode-tag assault';
     controlsHint.textContent = 'Hold click/touch to steer & fire. Keys 1-3 for upgrades';
     if(typeof renderUpgradesHTML === 'function') renderUpgradesHTML();
   }
+}
+
+function getAssaultUnlocks() {
+  try {
+    const saved = localStorage.getItem('nova_assault_unlocks');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return { hard: false, endless: false };
+}
+
+function setAssaultUnlock(key) {
+  const curr = getAssaultUnlocks();
+  curr[key] = true;
+  try {
+    localStorage.setItem('nova_assault_unlocks', JSON.stringify(curr));
+  } catch (e) {}
 }
 
 function gateSVG(m){
@@ -244,6 +261,24 @@ function toggleFullscreen() {
 
 function showStart(){
   const m = mode;
+  const unlocks = getAssaultUnlocks();
+  const currentDiff = (typeof assault !== 'undefined' && assault.selectedDifficulty) || 'normal';
+
+  let diffHTML = '';
+  if (m === 'assault') {
+    diffHTML = `
+      <div class="diff-selector">
+        <button type="button" class="diff-btn ${currentDiff === 'normal' ? 'active' : ''}" data-diff="normal">⚔️ Normal</button>
+        <button type="button" class="diff-btn ${currentDiff === 'hard' ? 'active' : ''} ${unlocks.hard ? '' : 'locked'}" data-diff="hard" title="${unlocks.hard ? 'Hard Mode' : 'Win Normal Mode to unlock'}">
+          💀 Hard ${unlocks.hard ? '' : '🔒'}
+        </button>
+        <button type="button" class="diff-btn ${currentDiff === 'endless' ? 'active' : ''} ${unlocks.endless ? '' : 'locked'}" data-diff="endless" title="${unlocks.endless ? 'Endless Mode' : 'Win Hard Mode to unlock'}">
+          ♾️ Endless ${unlocks.endless ? '' : '🔒'}
+        </button>
+      </div>
+    `;
+  }
+
   panel.innerHTML = `
     <h1 class="title">NOVA SHIFT</h1>
     <p class="subtitle">One world. The goal depends on how you hold it.</p>
@@ -251,11 +286,32 @@ function showStart(){
     <h2 class="mode-heading ${m}">${m==='escape' ? 'Escape Mode' : 'Assault Mode'}</h2>
     ${ m==='escape'
       ? `<p class="desc">There is no end &mdash; only how long you last. Dodge the falling wreckage, grab <b>crystals</b> for score, and survive as long as you can with <b>3 lives</b>.</p>`
-      : `<p class="desc">A <b>4-Wave</b> tactical defense. Earn points to buy upgrades, collect dropped power-ups, and defeat the <b>Leviathan Boss</b>.</p>`
+      : `<p class="desc">Tactical base defense. Earn points for upgrades, collect power-ups, and defeat the <b>Leviathan Flagship</b>.</p>${diffHTML}`
     }
     <div class="rotate-hint">⟳ Rotate your device to switch objectives entirely</div>
     <button id="btn-start">${m==='escape' ? 'Start Run' : 'Launch Defense'}</button>
   `;
+
+  if (m === 'assault') {
+    panel.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const diff = btn.getAttribute('data-diff');
+        if (diff === 'hard' && !unlocks.hard) {
+          if (typeof showWaveAnnouncement === 'function') showWaveAnnouncement('🔒 LOCKED', 'BEAT NORMAL MODE TO UNLOCK HARD MODE', false);
+          return;
+        }
+        if (diff === 'endless' && !unlocks.endless) {
+          if (typeof showWaveAnnouncement === 'function') showWaveAnnouncement('🔒 LOCKED', 'BEAT HARD MODE TO UNLOCK ENDLESS ASSAULT', false);
+          return;
+        }
+        if (typeof assault !== 'undefined') assault.selectedDifficulty = diff;
+        panel.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  }
+
   overlay.classList.remove('hidden');
   document.getElementById('btn-start').addEventListener('click', ()=>{
     requestFullscreenMode();

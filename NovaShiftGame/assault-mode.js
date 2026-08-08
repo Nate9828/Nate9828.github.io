@@ -9,6 +9,10 @@ const assault = {
   state: 'idle', // idle | playing | over
   wave: 1, totalWaves: 4, kills: 0, points: 0, health: 100,
   vw: 960, vh: 540,
+  selectedDifficulty: 'normal', // normal | hard | endless
+  solarFlareState: 'idle', // idle | warning | firing
+  solarFlareTimer: 0,
+  solarFlareLanes: [],
   getViewport() {
     const vh = 540;
     const scale = window.innerHeight / vh;
@@ -36,9 +40,13 @@ const assault = {
   start() {
     const W = this.vw, H = this.vh;
     this.state = 'playing'; this.wave = 1; this.kills = 0; this.points = 0;
+    this.totalWaves = this.selectedDifficulty === 'endless' ? Infinity : 4;
     this.fireRateLevel = 1; this.multishotLevel = 1; this.fortifyLevel = 1;
     this.maxHealth = 100; this.health = 100;
     this.overchargeTimer = 0; this.healthFlashTimer = 0; this.shieldCount = 0; this.shields = []; this.lastShotTime = 0;
+    this.solarFlareState = 'idle';
+    this.solarFlareTimer = this.selectedDifficulty === 'hard' ? randInt(18000, 26000) : 0;
+    this.solarFlareLanes = [];
     this.bolts = []; this.enemyBolts = []; this.missiles = []; this.enemies = []; this.drops = []; this.particles = []; this.boss = null;
     this.turret.x = Math.max(70, W * 0.09); this.turret.y = H / 2; this.turret.vx = 0; this.turret.vy = 0;
 
@@ -50,44 +58,177 @@ const assault = {
   },
 
   beginWave() {
-    if (this.wave === 4) {
-      // Wave 4: Dedicated Leviathan Boss Battle
+    const isHard = this.selectedDifficulty === 'hard';
+    const isEndless = this.selectedDifficulty === 'endless';
+    const isBossWave = (isEndless && (this.wave === 4 || (this.wave > 4 && (this.wave - 4) % 5 === 0))) || (!isEndless && this.wave === 4);
+
+    if (isBossWave) {
       this.spawnQueue = 0;
       this.spawnBoss();
-      showWaveAnnouncement('⚠️ WARNING: BOSS DETECTED', 'LEVIATHAN FLAGSHIP APPROACHING', true);
+      const bossIndex = isEndless ? Math.floor((this.wave - 4) / 5) + 1 : 1;
+      const isHardBossType = isEndless ? (bossIndex % 2 === 0) : isHard;
+      const bossName = isHardBossType ? 'LEVIATHAN OMEGA' : 'LEVIATHAN FLAGSHIP';
+      showWaveAnnouncement('⚠️ WARNING: BOSS DETECTED', `${bossName} APPROACHING${isEndless ? ` (BOSS ${bossIndex})` : ''}`, true);
     } else {
-      const counts = [8, 12, 16];
-      this.spawnQueue = counts[this.wave - 1];
+      let count = [8, 12, 16][Math.min(2, (this.wave - 1) % 4)];
+      if (isHard) count = Math.floor(count * 1.3);
+      if (isEndless) count = Math.floor(8 + (this.wave - 1) * 3.5);
+
+      this.spawnQueue = count;
       this.spawnTimer = 0;
-      this.spawnInterval = [900, 680, 500][this.wave - 1];
+      let interval = [900, 680, 500][Math.min(2, (this.wave - 1) % 4)];
+      if (isHard) interval = Math.floor(interval * 0.75);
+      if (isEndless) interval = Math.max(200, Math.floor(900 * Math.pow(0.92, this.wave - 1)));
+
+      this.spawnInterval = interval;
       this.boss = null;
 
       const subtitles = [
         'ENEMY RECON DIVISION // DEFEND BASE',
         'ARMORED CRUISERS DETECTED // HEAVY FIREPOWER REQUIRED',
-        'KAMIKAZE SWARM APPROACHING // WATCH DEFENSES'
+        'KAMIKAZE SWARM APPROACHING // WATCH DEFENSES',
+        'HEAVY ASSAULT SQUADRON // BATTLE POSITIONS',
+        'INTERCEPTOR FLEET // INTENSE FIRE FIGHT'
       ];
-      showWaveAnnouncement(`WAVE ${this.wave} // INCOMING`, subtitles[this.wave - 1] || 'DEFEND THE BASE', false);
+      const subIdx = (this.wave - 1) % subtitles.length;
+      showWaveAnnouncement(`WAVE ${this.wave} // INCOMING`, subtitles[subIdx], false);
     }
   },
 
   spawnBoss() {
     const W = this.vw, H = this.vh;
-    this.boss = {
-      x: W + 160,
-      y: H / 2,
-      targetY: H / 2,
-      r: 65,
-      hp: 110,
-      maxHp: 110,
-      phase: 0,
-      timer: 0,
-      shootTimer: 0,
-      salvoCooldown: 0,
-      missileQueue: [],
-      launchTimer: 0
-    };
+    const isHard = this.selectedDifficulty === 'hard';
+    const isEndless = this.selectedDifficulty === 'endless';
+    const bossIndex = isEndless ? Math.floor((this.wave - 4) / 5) + 1 : 1;
+    const isHardBossType = isEndless ? (bossIndex % 2 === 0) : isHard;
+
+    let baseHp = isHardBossType ? 220 : 110;
+    let hpVal = isEndless ? Math.floor(baseHp * Math.pow(1.25, bossIndex - 1)) : baseHp;
+
+    if (isHardBossType) {
+      // 6-PHASE HARD MODE BOSS: LEVIATHAN OMEGA
+      this.boss = {
+        isHardBoss: true,
+        name: 'LEVIATHAN OMEGA',
+        x: W + 180,
+        y: H / 2,
+        targetY: H / 2,
+        r: 75,
+        hp: hpVal,
+        maxHp: hpVal,
+        phase: 1,
+        timer: 0,
+        phaseTimer: 0,
+        shootTimer: 0,
+        salvoCooldown: 0,
+        missileQueue: [],
+        launchTimer: 0,
+        invulnerable: true,
+        phase1SecondWaveSpawned: false,
+        regenTimer: 0
+      };
+
+      // Spawn Phase 1 Opening Escort Wave 1: 3 Siege Enemies
+      this.spawnSiegeEscorts(3);
+    } else {
+      this.boss = {
+        isHardBoss: false,
+        name: 'LEVIATHAN FLAGSHIP',
+        x: W + 160,
+        y: H / 2,
+        targetY: H / 2,
+        r: 65,
+        hp: hpVal,
+        maxHp: hpVal,
+        phase: 0,
+        timer: 0,
+        shootTimer: 0,
+        salvoCooldown: 0,
+        missileQueue: [],
+        launchTimer: 0,
+        invulnerable: false
+      };
+    }
     createBossHUD();
+  },
+
+  spawnSiegeEscorts(count) {
+    const vp = this.getViewport();
+    const W = vp.vw, H = vp.vh, speedScale = vp.speedScale;
+    const isEndless = this.selectedDifficulty === 'endless';
+    const endlessHpBonus = isEndless ? Math.floor(this.wave / 10) : 0;
+    for (let i = 0; i < count; i++) {
+      const yPos = HUD_HEIGHT + 60 + (i / Math.max(1, count - 1)) * (H - HUD_HEIGHT - 120);
+      this.enemies.push({
+        type: 'beam_dreadnought',
+        x: W + 40 + i * 20,
+        y: yPos,
+        r: 32,
+        vx: -50 * speedScale,
+        vy: 0,
+        hp: 5 + endlessHpBonus,
+        maxHp: 5 + endlessHpBonus,
+        state: 'moving',
+        chargeTimer: 0,
+        maxChargeTime: Math.max(2200, 4500 - (this.wave - 3) * 150),
+        fireTimer: 0,
+        maxFireTime: 1500,
+        isEscort: true,
+        isBossDrone: true
+      });
+    }
+  },
+
+  initPhase5CruiserGuards(b) {
+    b.phase5GuardSlots = [
+      { respawnTimer: 0 },
+      { respawnTimer: 0 },
+      { respawnTimer: 0 },
+      { respawnTimer: 0 },
+      { respawnTimer: 0 }
+    ];
+    for (let i = 0; i < 5; i++) {
+      this.spawnSingleCruiserGuard(b, i, 5);
+    }
+  },
+
+  initPhase6CruiserGuards(b) {
+    this.enemies = this.enemies.filter(e => !e.isBossGuard);
+    b.phase6GuardSlots = [
+      { respawnTimer: 0 },
+      { respawnTimer: 0 },
+      { respawnTimer: 0 },
+      { respawnTimer: 0 }
+    ];
+    for (let i = 0; i < 4; i++) {
+      this.spawnSingleCruiserGuard(b, i, 4);
+    }
+  },
+
+  spawnSingleCruiserGuard(b, slotIndex, totalSlots = 5) {
+    const vp = this.getViewport();
+    const H = vp ? vp.vh : 600;
+    const minY = HUD_HEIGHT + 55;
+    const maxY = H - 55;
+    const divisor = Math.max(1, totalSlots - 1);
+    const fixedY = minY + (slotIndex / divisor) * (maxY - minY);
+    const isEndless = this.selectedDifficulty === 'endless';
+    const endlessHpBonus = isEndless ? Math.floor(this.wave / 10) : 0;
+    this.enemies.push({
+      type: 'cruiser',
+      x: b.x - 85,
+      y: fixedY,
+      fixedY: fixedY,
+      r: 26,
+      vx: 0,
+      vy: 0,
+      hp: 4 + endlessHpBonus,
+      maxHp: 4 + endlessHpBonus,
+      missileTimer: rand(1000, 2500),
+      isBossGuard: true,
+      guardSlotIndex: slotIndex,
+      isBossDrone: true
+    });
   },
 
   launchMissileSalvo(b, count, isStaggered) {
@@ -202,22 +343,27 @@ const assault = {
   },
 
   buyUpgrade(type) {
+    const isHard = this.selectedDifficulty !== 'normal';
+    const rCosts = isHard ? [150, 300] : [100, 250];
+    const mCosts = isHard ? [200, 400] : [150, 350];
+    const fCosts = isHard ? [250, 450] : [200, 400];
+
     if (type === 'rate' && this.fireRateLevel < 3) {
-      const cost = [100, 250][this.fireRateLevel - 1];
+      const cost = rCosts[this.fireRateLevel - 1];
       if (this.points >= cost) {
         this.points -= cost;
         this.fireRateLevel++;
         this.burstParticles(this.turret.x, this.turret.y, 'var(--energy)');
       }
     } else if (type === 'spread' && this.multishotLevel < 3) {
-      const cost = [150, 350][this.multishotLevel - 1];
+      const cost = mCosts[this.multishotLevel - 1];
       if (this.points >= cost) {
         this.points -= cost;
         this.multishotLevel++;
         this.burstParticles(this.turret.x, this.turret.y, 'var(--player)');
       }
     } else if ((type === 'fortify' || type === 'laser') && this.fortifyLevel < 3) {
-      const cost = [200, 400][this.fortifyLevel - 1];
+      const cost = fCosts[this.fortifyLevel - 1];
       if (this.points >= cost) {
         this.points -= cost;
         this.fortifyLevel++;
@@ -255,14 +401,36 @@ const assault = {
     }
   },
 
-  spawnPowerupDrop(x, y) {
-    if (Math.random() > 0.12) return; // 12% drop chance (rarer power-ups)
-    const isBossPhase = this.boss !== null || this.wave === 4;
-    const canSpawnHealth = this.health < 100 || isBossPhase;
-    const types = canSpawnHealth
-      ? ['nanite', 'overcharge', 'shield']
-      : ['overcharge', 'shield'];
-    const type = types[Math.floor(Math.random() * types.length)];
+  spawnPowerupDrop(x, y, enemyType) {
+    let dropRate = this.selectedDifficulty === 'hard' ? 0.04 : 0.12;
+
+    if (this.selectedDifficulty === 'endless') {
+      const reductionStep = Math.floor(this.wave / 5);
+      const rateMultiplier = Math.max(0, 1 - reductionStep * 0.1);
+      dropRate *= rateMultiplier;
+    }
+
+    if (Math.random() > dropRate) return;
+
+    const isEndless = this.selectedDifficulty === 'endless';
+    const isBossWave = (isEndless && (this.wave === 4 || (this.wave > 4 && (this.wave - 4) % 5 === 0))) || (!isEndless && this.wave === 4);
+    const isBossPhase = this.boss !== null || isBossWave;
+    let type = 'overcharge';
+
+    if (isBossPhase && enemyType === 'kamikaze') {
+      // Boss Wave Kamikaze Drone Drop Weighting: Health (65%), Shield (25%), Overcharge (10%)
+      const roll = Math.random();
+      if (roll < 0.65) type = 'nanite';
+      else if (roll < 0.90) type = 'shield';
+      else type = 'overcharge';
+    } else {
+      const canSpawnHealth = this.health < this.maxHealth || isBossPhase;
+      const types = canSpawnHealth
+        ? ['nanite', 'overcharge', 'shield']
+        : ['overcharge', 'shield'];
+      type = types[Math.floor(Math.random() * types.length)];
+    }
+
     const vp = this.getViewport();
     const speedScale = vp ? vp.speedScale : 1;
     this.drops.push({ x, y, r: 12, vx: -240 * speedScale, type, t: 0 });
@@ -276,6 +444,49 @@ const assault = {
     // Timers
     if (this.overchargeTimer > 0) this.overchargeTimer -= dt;
     if (this.healthFlashTimer > 0) this.healthFlashTimer -= dt;
+
+    // Hard Mode Cosmic Solar Flare Telegraphed Hazard
+    if (this.selectedDifficulty === 'hard') {
+      if (this.solarFlareState === 'idle') {
+        this.solarFlareTimer -= dt;
+        if (this.solarFlareTimer <= 0) {
+          this.solarFlareState = 'warning';
+          this.solarFlareTimer = 2000; // 2s warning
+          this.solarFlareLanes = [rand(HUD_HEIGHT + 50, H - 60), rand(HUD_HEIGHT + 50, H - 60)];
+          showWaveAnnouncement('☀️ SOLAR HEAT FLARE', 'EVACUATE HAZARD LANES', true);
+        }
+      } else if (this.solarFlareState === 'warning') {
+        this.solarFlareTimer -= dt;
+        if (this.solarFlareTimer <= 0) {
+          this.solarFlareState = 'firing';
+          this.solarFlareTimer = 1200; // 1.2s heat wave
+        }
+      } else if (this.solarFlareState === 'firing') {
+        this.solarFlareTimer -= dt;
+        for (const laneY of (this.solarFlareLanes || [])) {
+          if (Math.abs(this.turret.y - laneY) < 26) {
+            if (this.shields && this.shields.length > 0) {
+              this.shields.pop();
+              this.shieldCount = this.shields.length;
+            } else {
+              this.damageBase(12 * dt / 1000);
+            }
+          }
+          if (Math.random() < 0.5) {
+            this.particles.push({
+              x: rand(0, W), y: laneY + rand(-18, 18),
+              vx: rand(-100, 100), vy: rand(-30, 30),
+              life: rand(200, 450), maxLife: 450,
+              color: '#ffb020'
+            });
+          }
+        }
+        if (this.solarFlareTimer <= 0) {
+          this.solarFlareState = 'idle';
+          this.solarFlareTimer = randInt(20000, 28000);
+        }
+      }
+    }
 
     if (this.shields && this.shields.length > 0) {
       for (const s of this.shields) {
@@ -292,7 +503,7 @@ const assault = {
 
     // Turret movement
     const targetSpeed = 750 * speedScale;
-    const keySpeed = 420 * speedScale;
+    const keySpeed = 280 * speedScale;
     const baseX = Math.max(70, W * 0.09);
     const keyActive = input.keys['arrowleft'] || input.keys['a'] || input.keys['arrowright'] || input.keys['d'] || input.keys['arrowup'] || input.keys['w'] || input.keys['arrowdown'] || input.keys['s'];
     if (keyActive) input.mouseActive = false;
@@ -323,8 +534,8 @@ const assault = {
     this.turret.y = clamp(this.turret.y + (this.turret.vy || 0) * dt / 1000, HUD_HEIGHT + 24, H - 24);
     this.turret.x = clamp(this.turret.x + (this.turret.vx || 0) * dt / 1000, 30, baseX);
 
-    // Standard Enemy Spawner (Waves 1-3)
-    if (this.spawnQueue > 0 && this.wave < 4) {
+    // Standard Enemy Spawner
+    if (this.spawnQueue > 0 && !this.boss) {
       this.spawnTimer += dt;
       if (this.spawnTimer > this.spawnInterval) {
         this.spawnTimer = 0; this.spawnQueue--;
@@ -335,26 +546,41 @@ const assault = {
         } else if (this.wave === 2) {
           type = Math.random() < 0.25 ? 'cruiser' : (Math.random() < 0.35 ? 'kamikaze' : 'raider');
         } else {
-          type = Math.random() < 0.35 ? 'cruiser' : (Math.random() < 0.4 ? 'kamikaze' : 'raider');
+          const roll = Math.random();
+          const dreadProb = Math.min(0.35, 0.22 + Math.floor(this.wave / 5) * 0.03);
+          const cruiserProb = dreadProb + Math.min(0.30, 0.23 + Math.floor(this.wave / 5) * 0.02);
+          const kamiProb = cruiserProb + 0.25;
+
+          if (roll < dreadProb) type = 'beam_dreadnought';
+          else if (roll < cruiserProb) type = 'cruiser';
+          else if (roll < kamiProb) type = 'kamikaze';
+          else type = 'raider';
         }
 
-        let speed = (65 + this.wave * 15) * speedScale;
-        let hpVal = 1;
+        const isEndless = this.selectedDifficulty === 'endless';
+        const endlessHpBonus = isEndless ? Math.floor(this.wave / 10) : 0;
+        let speed = (65 + Math.min(160, this.wave * 10)) * speedScale;
+        let hpVal = 1 + endlessHpBonus;
         let radius = 18;
 
         if (type === 'kamikaze') {
-          speed = (rand(210, 360) + this.wave * 15) * speedScale;
+          speed = (rand(210, 360) + Math.min(120, this.wave * 8)) * speedScale;
           radius = 12;
+          hpVal = 1 + endlessHpBonus;
         } else if (type === 'cruiser') {
           speed = 45 * speedScale;
-          hpVal = 4;
+          hpVal = 4 + endlessHpBonus;
           radius = 26;
+        } else if (type === 'beam_dreadnought') {
+          speed = 40 * speedScale;
+          hpVal = 5 + endlessHpBonus;
+          radius = 32;
         }
 
         this.enemies.push({
           type,
-          x: W + 30,
-          y: rand(HUD_HEIGHT + 40, H - 50),
+          x: W + 35,
+          y: rand(HUD_HEIGHT + 60, H - 60),
           r: radius,
           vx: -speed,
           vy: 0,
@@ -363,7 +589,12 @@ const assault = {
           t: rand(0, 10),
           hp: hpVal,
           maxHp: hpVal,
-          missileTimer: type === 'cruiser' ? rand(1800, 2600) : 0
+          missileTimer: type === 'cruiser' ? rand(1800, 2600) : 0,
+          state: 'moving',
+          chargeTimer: 0,
+          maxChargeTime: Math.max(2000, 5000 - (this.wave - 3) * 175),
+          fireTimer: 0,
+          maxFireTime: 1500
         });
       }
     }
@@ -410,7 +641,14 @@ const assault = {
     // Move & Update Enemies
     for (const e of this.enemies) {
       e.t += dt / 1000;
-      e.x += e.vx * dt / 1000;
+      if (e.isBossGuard && this.boss) {
+        e.x += ((this.boss.x - 85) - e.x) * 5.0 * dt / 1000;
+        if (e.fixedY != null) {
+          e.y += (e.fixedY - e.y) * 5.0 * dt / 1000;
+        }
+      } else {
+        e.x += e.vx * dt / 1000;
+      }
       if (e.type === 'kamikaze') {
         const dy = this.turret.y - e.y;
         e.y += Math.sign(dy) * Math.min(Math.abs(dy), 140) * dt / 1000;
@@ -429,6 +667,49 @@ const assault = {
           });
           for (let i = 0; i < 6; i++) {
             this.particles.push(spark(e.x - e.r, e.y, '#ff1744'));
+          }
+        }
+      } else if (e.type === 'beam_dreadnought') {
+        if (e.state === 'moving') {
+          if (e.x <= W * 0.85) {
+            e.x = W * 0.85;
+            e.vx = 0;
+            e.state = 'charging';
+            e.chargeTimer = 0;
+          }
+        } else if (e.state === 'charging') {
+          e.chargeTimer += dt;
+          if (Math.random() < 0.45) {
+            const pAngle = Math.random() * Math.PI * 2;
+            const pDist = rand(15, 45);
+            this.particles.push({
+              x: e.x - e.r * 0.8 + Math.cos(pAngle) * pDist,
+              y: e.y + Math.sin(pAngle) * pDist,
+              vx: -Math.cos(pAngle) * 60,
+              vy: -Math.sin(pAngle) * 60,
+              life: rand(180, 320),
+              maxLife: 320,
+              color: '#ff1744'
+            });
+          }
+          if (e.chargeTimer >= e.maxChargeTime) {
+            e.state = 'firing';
+            e.fireTimer = 0;
+          }
+        } else if (e.state === 'firing') {
+          e.fireTimer += dt;
+          // High-threat siege beam attack (18.0 HP/sec direct damage to base)
+          this.health = Math.max(0, this.health - (18.0 * dt / 1000));
+          if (this.health <= 0) {
+            this.health = 0;
+            this.state = 'over';
+            removeBossHUD();
+            showAssaultEnd(false);
+          }
+
+          if (e.fireTimer >= e.maxFireTime) {
+            e.state = 'charging';
+            e.chargeTimer = 0;
           }
         }
       } else if (e.amp) {
@@ -474,27 +755,56 @@ const assault = {
           if (e.hp <= 0) {
             e.dead = true;
             this.kills++;
-            const ptsEarned = e.type === 'cruiser' ? 40 : (e.type === 'kamikaze' ? 25 : 15);
+            if (e.isBossGuard && typeof e.guardSlotIndex === 'number' && this.boss) {
+              if (this.boss.phase === 5 && this.boss.phase5GuardSlots && this.boss.phase5GuardSlots[e.guardSlotIndex]) {
+                this.boss.phase5GuardSlots[e.guardSlotIndex].respawnTimer = 5000;
+              } else if (this.boss.phase === 6 && this.boss.phase6GuardSlots && this.boss.phase6GuardSlots[e.guardSlotIndex]) {
+                this.boss.phase6GuardSlots[e.guardSlotIndex].respawnTimer = 5000;
+              }
+            }
+            const isHard = this.selectedDifficulty !== 'normal';
+            let ptsEarned = e.type === 'cruiser' ? 40 : (e.type === 'kamikaze' ? 25 : (e.type === 'beam_dreadnought' ? 55 : 15));
+            if (isHard) {
+              if (this.boss && (e.type === 'kamikaze' || e.isEscort || e.isBossDrone || e.isBossGuard)) {
+                ptsEarned = 5;
+              } else {
+                ptsEarned = Math.floor(ptsEarned * 0.85);
+              }
+            }
             this.points += ptsEarned;
-            this.spawnPowerupDrop(e.x, e.y);
+            this.spawnPowerupDrop(e.x, e.y, e.type);
           }
         }
       }
 
       // Player Bolts vs Boss
       if (this.boss && !b.dead && dist2(b.x, b.y, this.boss.x, this.boss.y) < (this.boss.r + 18) ** 2) {
-        if (!b.pierce) b.dead = true;
-        this.boss.hp -= b.dmg || 1;
-        for (let i = 0; i < 8; i++) this.particles.push(spark(b.x, b.y, 'var(--player)'));
-        if (this.boss.hp <= 0) {
-          this.boss.hp = 0;
-          this.kills++;
-          this.points += 500;
-          this.burstParticles(this.boss.x, this.boss.y, 'var(--energy)');
-          this.boss = null;
-          removeBossHUD();
-          this.state = 'over';
-          showAssaultEnd(true);
+        if (this.boss.invulnerable) {
+          b.dead = true;
+          for (let i = 0; i < 6; i++) this.particles.push(spark(b.x, b.y, '#7c5cff'));
+        } else {
+          if (!b.pierce) b.dead = true;
+          this.boss.hp -= b.dmg || 1;
+          for (let i = 0; i < 8; i++) this.particles.push(spark(b.x, b.y, 'var(--player)'));
+          if (this.boss.hp <= 0) {
+            this.boss.hp = 0;
+            this.kills++;
+            this.points += 500;
+            this.burstParticles(this.boss.x, this.boss.y, 'var(--energy)');
+            this.boss = null;
+            removeBossHUD();
+
+            if (this.selectedDifficulty === 'endless') {
+              showWaveAnnouncement('BOSS DESTROYED!', `WAVE ${this.wave} CLEARED`, true);
+              this.enemies = this.enemies.filter(e => !e.isBossDrone && !e.isBossGuard && !e.isEscort);
+              this.wave++;
+              this.beginWave();
+              renderHUD();
+            } else {
+              this.state = 'over';
+              showAssaultEnd(true);
+            }
+          }
         }
       }
     }
@@ -534,7 +844,7 @@ const assault = {
           this.healthFlashTimer = 1000;
           this.burstParticles(this.turret.x, this.turret.y, '#4dff88');
         } else if (d.type === 'overcharge') {
-          this.overchargeTimer = 12000;
+          this.overchargeTimer = 6000;
           this.burstParticles(this.turret.x, this.turret.y, 'var(--energy)');
         } else if (d.type === 'shield') {
           this.shields = this.shields || [];
@@ -546,8 +856,9 @@ const assault = {
     }
     this.drops = this.drops.filter(d => !d.collected && !d.expired);
 
-    // Wave clear check (Waves 1-3)
-    if (this.spawnQueue <= 0 && this.enemies.length === 0 && !this.boss && this.state === 'playing' && this.wave < 4) {
+    // Wave clear check
+    const isWaveComplete = this.spawnQueue <= 0 && this.enemies.length === 0 && !this.boss && this.state === 'playing';
+    if (isWaveComplete && (this.selectedDifficulty === 'endless' || this.wave < 4)) {
       this.wave++;
       this.beginWave();
       renderHUD();
@@ -575,17 +886,244 @@ const assault = {
           this.missiles.push({
             x: b.x - 45,
             y: clamp(b.y + item.yOffset, HUD_HEIGHT + 30, H - 30),
-            r: 8, vx: b.phase === 3 ? -250 : -230, vy: 0, targetY: item.tY, hp: 1
+            r: 8, vx: b.phase >= 4 ? -260 : -230, vy: 0, targetY: item.tY, hp: 1
           });
           this.burstParticles(b.x - 45, b.y + item.yOffset, '#ff1744');
         }
         if (b.missileQueue.length === 0) {
-          b.salvoCooldown = 1800; // Pause after completing staggered salvo
+          b.salvoCooldown = 1600;
         }
       }
     }
 
-    // Phase transition check
+    // ---------------------------------------------------------
+    // 6-PHASE HARD MODE BOSS LOGIC: LEVIATHAN OMEGA
+    // ---------------------------------------------------------
+    if (b.isHardBoss) {
+      b.phaseTimer += dt;
+      const activeEscorts = this.enemies.filter(e => e.isEscort || e.type === 'beam_dreadnought').length;
+      const hpPct = b.hp / b.maxHp;
+
+      // Phase 1: Siege Matrix (Wave 1: 3 Siege Drones | Wave 2: 2 Siege Drones)
+      if (b.phase === 1) {
+        if (activeEscorts === 0 && !b.phase1SecondWaveSpawned) {
+          b.phase1SecondWaveSpawned = true;
+          b.invulnerable = true;
+          showWaveAnnouncement('⚠️ SIEGE REINFORCEMENTS', '2 MORE SIEGE UNITS SPAWNED', true);
+          this.spawnSiegeEscorts(2);
+        } else if (activeEscorts === 0 && b.phase1SecondWaveSpawned) {
+          b.invulnerable = false;
+        } else {
+          b.invulnerable = true;
+        }
+
+        if (!b.invulnerable && hpPct <= 0.80) {
+          b.phase = 2;
+          b.phaseTimer = 0;
+          this.triggerPhaseBurst(b);
+        }
+      }
+      // Phase 2: Pure Homing Missile Barrage
+      else if (b.phase === 2) {
+        b.invulnerable = false;
+        if (hpPct <= 0.50) {
+          b.phase = 3;
+          b.phaseTimer = 0;
+          b.invulnerable = true;
+          this.triggerPhaseBurst(b);
+          this.spawnSiegeEscorts(2); // 2 Siphon Drones
+        }
+      }
+      // Phase 3: Siphon Energy Overdrive (Regenerate Health while Siphon Drones alive)
+      else if (b.phase === 3) {
+        b.invulnerable = activeEscorts > 0;
+        if (activeEscorts > 0 && b.hp < b.maxHp * 0.80) {
+          const healRate = [14, 11, 8, 5][Math.min(3, b.siphonRepairCount || 0)];
+          b.hp = Math.min(b.maxHp * 0.80, b.hp + (healRate * dt / 1000));
+          if (Math.random() < 0.4) {
+            this.particles.push(spark(b.x + rand(-30, 30), b.y + rand(-30, 30), '#4dff88'));
+          }
+        }
+        if (activeEscorts === 0 || hpPct <= 0.35) {
+          b.phase = b.savedPhase || 4;
+          b.savedPhase = null;
+          b.phaseTimer = 0;
+          b.invulnerable = false;
+          this.triggerPhaseBurst(b);
+        }
+      }
+      // Phase 4: Pure Drone Swarm Barrage
+      else if (b.phase === 4) {
+        b.invulnerable = false;
+        if (hpPct <= 0.35) {
+          b.phase = 5;
+          b.phaseTimer = 0;
+          this.triggerPhaseBurst(b);
+        }
+      }
+      // Phase 5: Desperation Combined Assault
+      else if (b.phase === 5) {
+        b.invulnerable = false;
+        if (hpPct <= 0.10) {
+          b.phase = 6;
+          b.phaseTimer = 0;
+          this.triggerPhaseBurst(b);
+        }
+      }
+      // Phase 6: Hyper Overdrive
+      else if (b.phase === 6) {
+        b.invulnerable = false;
+      }
+
+      // Phase Timeout Reset: If player stays in Phase 4, 5, or 6 for > 18s without advancing, boss triggers Siphon Repair!
+      if ((b.phase === 4 || b.phase === 5 || b.phase === 6) && b.phaseTimer >= 18000) {
+        b.siphonRepairCount = (b.siphonRepairCount || 0) + 1;
+        b.savedPhase = b.phase;
+        b.phase = 3;
+        b.phaseTimer = 0;
+        b.invulnerable = true;
+        showWaveAnnouncement('⚠️ REPAIR OVERDRIVE', 'BOSS REGENERATING HEALTH - DESTROY SIPHON DRONES', true);
+        this.triggerPhaseBurst(b);
+        this.spawnSiegeEscorts(2);
+      }
+
+      // Hard Boss Attack Behaviors per Phase
+      if (b.phase === 1) {
+        // Phase 1: Escort Missile Support
+        if (b.x > W - 150) b.x -= 70 * dt / 1000;
+        b.targetY = H / 2 + Math.sin(b.timer * 1.5) * (H * 0.25);
+        b.y += (b.targetY - b.y) * 2.5 * dt / 1000;
+
+        b.shootTimer += dt;
+        if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1500) {
+          b.shootTimer = 0;
+          this.launchMissileSalvo(b, randInt(4, 6), Math.random() < 0.5);
+        }
+      } else if (b.phase === 2) {
+        // Phase 2: Dedicated Homing Missile Barrage
+        if (b.x > W - 140) b.x -= 80 * dt / 1000;
+        b.targetY = H / 2 + Math.sin(b.timer * 2.2) * (H * 0.30);
+        b.y += (b.targetY - b.y) * 3.2 * dt / 1000;
+
+        b.shootTimer += dt;
+        if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1250) {
+          b.shootTimer = 0;
+          const count = randInt(5, 8);
+          this.launchMissileSalvo(b, count, Math.random() < 0.5);
+        }
+      } else if (b.phase === 3) {
+        // Phase 3: Siphon Overdrive Lock-in Position
+        if (b.x > W - 140) b.x -= 80 * dt / 1000;
+        b.targetY = H / 2;
+        b.y += (b.targetY - b.y) * 4.0 * dt / 1000;
+      } else if (b.phase === 4) {
+        // Phase 4: Dedicated Drone Swarm Barrage + Delayed Homing Missiles
+        if (b.x > W - 130) b.x -= 80 * dt / 1000;
+        b.targetY = H / 2 + Math.sin(b.timer * 2.0) * (H * 0.32);
+        b.y += (b.targetY - b.y) * 3.0 * dt / 1000;
+
+        b.shootTimer += dt;
+        if (b.shootTimer > 2400) {
+          b.shootTimer = 0;
+          const count = randInt(5, 9);
+          for (let i = 0; i < count; i++) {
+            const yOffset = (i - (count - 1) / 2) * 24;
+            this.enemies.push({
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(250, 400), vy: 0, amp: 48, freq: 3.4, t: i * 0.12, hp: 1, maxHp: 1, isBossDrone: true
+            });
+          }
+          // Delay 0.9s (900ms) gap before spawning 1-3 homing missiles
+          b.p4MissileTimer = 900;
+          b.p4MissileCount = randInt(1, 3);
+        }
+
+        if (b.p4MissileTimer > 0) {
+          b.p4MissileTimer -= dt;
+          if (b.p4MissileTimer <= 0) {
+            b.p4MissileTimer = 0;
+            this.launchMissileSalvo(b, b.p4MissileCount || randInt(1, 3), Math.random() < 0.5);
+          }
+        }
+      } else if (b.phase === 5) {
+        // Phase 5: Desperation Combined Assault with 5 Cruiser Guards
+        if (!b.phase5GuardSlots) {
+          this.initPhase5CruiserGuards(b);
+        }
+
+        // Update 5-second Cruiser Guard slot respawn timers
+        if (b.phase5GuardSlots) {
+          for (let i = 0; i < 5; i++) {
+            const slot = b.phase5GuardSlots[i];
+            if (slot && slot.respawnTimer > 0) {
+              slot.respawnTimer -= dt;
+              if (slot.respawnTimer <= 0) {
+                slot.respawnTimer = 0;
+                this.spawnSingleCruiserGuard(b, i, 5);
+              }
+            }
+          }
+        }
+
+        b.targetY = H / 2 + Math.sin(b.timer * 2.6) * (H * 0.35);
+        b.y += (b.targetY - b.y) * 3.6 * dt / 1000;
+
+        b.shootTimer += dt;
+        if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1200) {
+          b.shootTimer = 0;
+          const dCount = randInt(5, 8);
+          for (let i = 0; i < dCount; i++) {
+            const yOffset = (i - (dCount - 1) / 2) * 22;
+            this.enemies.push({
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(250, 400), vy: 0, amp: 48, freq: 3.4, t: i * 0.12, hp: 1, maxHp: 1, isBossDrone: true
+            });
+          }
+          this.launchMissileSalvo(b, randInt(4, 7), true);
+        }
+      } else if (b.phase === 6) {
+        // Phase 6: HYPER-OVERDRIVE with 4 Cruiser Guards
+        if (!b.phase6GuardSlots) {
+          this.initPhase6CruiserGuards(b);
+        }
+
+        // Update 5-second Cruiser Guard slot respawn timers for Phase 6
+        if (b.phase6GuardSlots) {
+          for (let i = 0; i < 4; i++) {
+            const slot = b.phase6GuardSlots[i];
+            if (slot && slot.respawnTimer > 0) {
+              slot.respawnTimer -= dt;
+              if (slot.respawnTimer <= 0) {
+                slot.respawnTimer = 0;
+                this.spawnSingleCruiserGuard(b, i, 4);
+              }
+            }
+          }
+        }
+
+        b.targetY = H / 2 + Math.sin(b.timer * 3.4) * (H * 0.38);
+        b.y += (b.targetY - b.y) * 4.2 * dt / 1000;
+
+        if (Math.random() < 0.45) {
+          this.particles.push(spark(b.x + rand(-b.r, b.r), b.y + rand(-b.r, b.r), '#ffee55'));
+        }
+
+        b.shootTimer += dt;
+        if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1000) {
+          b.shootTimer = 0;
+          const mCount = randInt(5, 8);
+          const dCount = randInt(6, 9);
+          for (let i = 0; i < dCount; i++) {
+            const yOffset = (i - (dCount - 1) / 2) * 22;
+            this.enemies.push({
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(260, 430), vy: 0, amp: 50, freq: 3.6, t: i * 0.1, hp: 1, maxHp: 1
+            });
+          }
+          this.launchMissileSalvo(b, mCount, true);
+        }
+      }
+      return;
+    }
+
+    // Standard Leviathan Boss Phase Transitions (Normal / Endless modes)
     const hpPct = b.hp / b.maxHp;
     let newPhase = 1;
     if (hpPct <= 0.33) newPhase = 3;
@@ -596,7 +1134,7 @@ const assault = {
       this.triggerPhaseBurst(b);
     }
 
-    // Phase 1 Logic: Active stance (x: W - 165), launches 3-6 Homing Missiles (50% Staggered Ripple / 50% Fan Volley)
+    // Phase 1 Logic
     if (b.phase === 1) {
       if (b.x > W - 165) {
         b.x -= 60 * dt / 1000;
@@ -612,7 +1150,7 @@ const assault = {
         this.launchMissileSalvo(b, count, isStaggered);
       }
     }
-    // Phase 2 Logic: Gentle hover (x: W - 130), launches 4-7 Kamikaze Drones with variable speeds
+    // Phase 2 Logic
     else if (b.phase === 2) {
       if (b.x > W - 130) {
         b.x -= 80 * dt / 1000;
@@ -632,12 +1170,11 @@ const assault = {
         }
       }
     }
-    // Phase 3 Logic: HYPER-MODE! Missiles (3-6), Drones (6-9), OR Combined Assault (Missiles 3-6 AND Drones 6-9 simultaneously!)
+    // Phase 3 Logic
     else if (b.phase === 3) {
       b.targetY = H / 2 + Math.sin(b.timer * 2.4) * (H * 0.35);
       b.y += (b.targetY - b.y) * 3.5 * dt / 1000;
 
-      // Emergency lightning sparks on damaged hull
       if (Math.random() < 0.35) {
         this.particles.push(spark(b.x + rand(-b.r, b.r), b.y + rand(-b.r, b.r), '#ffee55'));
       }
@@ -649,12 +1186,10 @@ const assault = {
         const attackRoll = Math.random();
 
         if (attackRoll < 0.30) {
-          // Attack Option 1: Missiles Only (3 to 6)
           const mCount = randInt(3, 6);
           const isStaggered = Math.random() < 0.5;
           this.launchMissileSalvo(b, mCount, isStaggered);
         } else if (attackRoll < 0.60) {
-          // Attack Option 2: Drones Only (6 to 9)
           const dCount = randInt(6, 9);
           for (let i = 0; i < dCount; i++) {
             const yOffset = (i - (dCount - 1) / 2) * 22;
@@ -664,19 +1199,14 @@ const assault = {
           }
           b.salvoCooldown = 1800;
         } else {
-          // Attack Option 3: COMBINED DUAL ASSAULT! Both Missiles (3 to 6) AND Drones (6 to 9) simultaneously!
           const dCount = randInt(6, 9);
           const mCount = randInt(3, 6);
-
-          // Spawn Drones (6 to 9) with variable speeds
           for (let i = 0; i < dCount; i++) {
             const yOffset = (i - (dCount - 1) / 2) * 22;
             this.enemies.push({
               type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1, maxHp: 1
             });
           }
-
-          // Launch Missiles (3 to 6) simultaneously or staggered
           const isStaggered = Math.random() < 0.4;
           this.launchMissileSalvo(b, mCount, isStaggered);
         }
@@ -699,6 +1229,33 @@ const assault = {
 
     // Fortified Base Structure
     drawBaseStructure(ctx, W, H, baseX, this.turret.r, this.health, this.healthFlashTimer);
+
+    // Telegraphed Solar Flare Warning Lanes & Firing Waves
+    if (this.solarFlareState === 'warning' && this.solarFlareLanes) {
+      const warnPulse = 0.2 + Math.abs(Math.sin(performance.now() * 0.012)) * 0.45;
+      for (const laneY of this.solarFlareLanes) {
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 176, 32, ${warnPulse})`;
+        ctx.fillRect(0, laneY - 24, W, 48);
+        ctx.strokeStyle = '#ffb020';
+        ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 10;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.moveTo(0, laneY - 24); ctx.lineTo(W, laneY - 24);
+        ctx.moveTo(0, laneY + 24); ctx.lineTo(W, laneY + 24);
+        ctx.stroke();
+        ctx.restore();
+      }
+    } else if (this.solarFlareState === 'firing' && this.solarFlareLanes) {
+      for (const laneY of this.solarFlareLanes) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 60, 0, 0.45)';
+        ctx.shadowColor = '#ff3d00'; ctx.shadowBlur = 25;
+        ctx.fillRect(0, laneY - 24, W, 48);
+        ctx.restore();
+      }
+    }
 
     // Force Barrier Shield(s) around Base & Turret if active
     if (this.shields && this.shields.length > 0) {
@@ -770,7 +1327,24 @@ const assault = {
       drawEnemy(ctx, e);
     }
 
-    // Boss
+    // Boss Siphon Energy Beams (Phase 3)
+    if (this.boss && this.boss.isHardBoss && this.boss.phase === 3) {
+      for (const e of this.enemies) {
+        if (e.isEscort || e.type === 'beam_dreadnought') {
+          ctx.save();
+          ctx.strokeStyle = '#4dff88';
+          ctx.shadowColor = '#4dff88'; ctx.shadowBlur = 16;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(e.x, e.y);
+          ctx.lineTo(this.boss.x, this.boss.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Boss & Boss Missiles
     if (this.boss) {
       drawBoss(ctx, this.boss);
     }
@@ -844,9 +1418,14 @@ function renderUpgradesHTML(force) {
   const bar = document.getElementById('upgrade-bar');
   if (!bar) return;
 
-  const rCost = assault.fireRateLevel < 3 ? [100, 250][assault.fireRateLevel - 1] : 'MAX';
-  const mCost = assault.multishotLevel < 3 ? [150, 350][assault.multishotLevel - 1] : 'MAX';
-  const fCost = assault.fortifyLevel < 3 ? [200, 400][assault.fortifyLevel - 1] : 'MAX';
+  const isHard = assault.selectedDifficulty !== 'normal';
+  const rCosts = isHard ? [150, 300] : [100, 250];
+  const mCosts = isHard ? [200, 400] : [150, 350];
+  const fCosts = isHard ? [250, 450] : [200, 400];
+
+  const rCost = assault.fireRateLevel < 3 ? rCosts[assault.fireRateLevel - 1] : 'MAX';
+  const mCost = assault.multishotLevel < 3 ? mCosts[assault.multishotLevel - 1] : 'MAX';
+  const fCost = assault.fortifyLevel < 3 ? fCosts[assault.fortifyLevel - 1] : 'MAX';
 
   const rAffordable = assault.fireRateLevel < 3 && assault.points >= rCost;
   const mAffordable = assault.multishotLevel < 3 && assault.points >= mCost;
@@ -884,7 +1463,7 @@ function renderUpgradesHTML(force) {
 
 function renderAssaultHUDNumbers() {
   const w = document.getElementById('hv-wave');
-  if (w) w.textContent = `${assault.wave} / ${assault.totalWaves}`;
+  if (w) w.textContent = `${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}`;
 
   const pts = document.getElementById('hv-points');
   if (pts) pts.textContent = assault.points;
@@ -898,12 +1477,31 @@ function renderAssaultHUDNumbers() {
 
     const bhud = document.getElementById('boss-hud');
     const tag = document.getElementById('boss-phase-tag');
+    const nameEl = bhud ? bhud.querySelector('.boss-name') : null;
+
     if (bhud && tag) {
-      const phase = assault.boss.phase;
-      bhud.className = `boss-phase-${phase}`;
-      if (phase === 1) tag.textContent = 'PHASE 1 // MISSILE BARRAGE';
-      else if (phase === 2) tag.textContent = 'PHASE 2 // DRONE LAUNCHER';
-      else tag.textContent = 'PHASE 3 // HYPER OVERDRIVE';
+      if (assault.boss.isHardBoss) {
+        if (nameEl) nameEl.textContent = 'LEVIATHAN OMEGA';
+        const p = assault.boss.phase;
+        const inv = assault.boss.invulnerable ? ' [VOID SHIELD ACTIVE]' : '';
+        const phaseNames = [
+          '',
+          `PHASE 1 // SIEGE MATRIX${inv}`,
+          `PHASE 2 // HOMING MISSILE BARRAGE`,
+          `PHASE 3 // SIPHON REPAIR OVERDRIVE${inv}`,
+          `PHASE 4 // DRONE SWARM BARRAGE`,
+          `PHASE 5 // DESPERATION ASSAULT`,
+          `PHASE 6 // HYPER OVERDRIVE`
+        ];
+        tag.textContent = phaseNames[p] || `PHASE ${p} // OVERDRIVE`;
+      } else {
+        if (nameEl) nameEl.textContent = 'LEVIATHAN FLAGSHIP';
+        const phase = assault.boss.phase;
+        bhud.className = `boss-phase-${phase}`;
+        if (phase === 1) tag.textContent = 'PHASE 1 // MISSILE BARRAGE';
+        else if (phase === 2) tag.textContent = 'PHASE 2 // DRONE LAUNCHER';
+        else tag.textContent = 'PHASE 3 // HYPER OVERDRIVE';
+      }
     }
   }
 
@@ -912,8 +1510,20 @@ function renderAssaultHUDNumbers() {
 
 function showAssaultEnd(win) {
   removeWaveAnnouncement();
+  let unlockHTML = '';
+  if (win && typeof setAssaultUnlock === 'function') {
+    if (assault.selectedDifficulty === 'normal') {
+      setAssaultUnlock('hard');
+      unlockHTML = `<div class="unlock-banner">💀 HARD MODE UNLOCKED!</div>`;
+    } else if (assault.selectedDifficulty === 'hard') {
+      setAssaultUnlock('endless');
+      unlockHTML = `<div class="unlock-banner">♾️ ENDLESS ASSAULT UNLOCKED!</div>`;
+    }
+  }
+
   panel.innerHTML = `
     <h1 class="title ${win ? 'victory-title' : 'loss-title'}">${win ? 'VICTORY SECURED' : 'BASE LOST'}</h1>
+    ${unlockHTML}
     <div id="gate">${gateSVG('assault')}</div>
     <div class="stat-row">
       <div class="stat"><span class="num">${assault.wave}</span><span class="lbl">Waves</span></div>
@@ -925,8 +1535,12 @@ function showAssaultEnd(win) {
   `;
   overlay.classList.remove('hidden');
   document.getElementById('btn-retry2').addEventListener('click', () => {
-    if (typeof requestFullscreenMode === 'function') requestFullscreenMode();
-    overlay.classList.add('hidden'); assault.start();
+    if (typeof showStart === 'function') {
+      showStart();
+    } else {
+      overlay.classList.add('hidden');
+      assault.start();
+    }
   });
 }
 
@@ -997,7 +1611,7 @@ function drawBaseStructure(ctx, W, H, baseX, turretR, health, healthFlashTimer) 
   ctx.shadowColor = glowColor;
   ctx.shadowBlur = (healthFlashTimer > 0 || healthPct <= 0.25) ? 12 : 6;
   ctx.fillStyle = energyColor;
-  const pulseAlpha = (healthFlashTimer > 0 || healthPct <= 0.25) 
+  const pulseAlpha = (healthFlashTimer > 0 || healthPct <= 0.25)
     ? 0.55 + Math.sin(now * 0.016) * 0.4
     : 0.35 + Math.sin(now * 0.004) * 0.12;
   ctx.globalAlpha = Math.max(0.1, pulseAlpha);
@@ -1483,6 +2097,114 @@ function drawEnemy(ctx, e) {
   ctx.save();
   ctx.translate(e.x, e.y);
 
+  if (e.type === 'beam_dreadnought') {
+    // Massive Heavy Armored Beam Dreadnought
+    const pulse = Math.sin((e.t || 0) * 8) * 0.15 + 0.85;
+
+    // Thruster Flames
+    ctx.save();
+    ctx.shadowColor = '#ff1744'; ctx.shadowBlur = 14 * pulse;
+    ctx.fillStyle = '#ff1744';
+    ctx.fillRect(e.r * 0.7, -e.r * 0.4, e.r * 0.6, e.r * 0.25);
+    ctx.fillRect(e.r * 0.7, e.r * 0.15, e.r * 0.6, e.r * 0.25);
+    ctx.restore();
+
+    // Heavy Fortified Main Chassis Outer Polygon
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,23,68,0.85)'; ctx.shadowBlur = 18 * pulse;
+    ctx.strokeStyle = '#ff1744'; ctx.lineWidth = 2.5;
+    ctx.fillStyle = '#0a0d18';
+
+    ctx.beginPath();
+    ctx.moveTo(-e.r * 1.3, 0); // Front emitter nose
+    ctx.lineTo(-e.r * 0.5, -e.r * 0.85);
+    ctx.lineTo(e.r * 0.8, -e.r * 0.8);
+    ctx.lineTo(e.r * 0.6, 0);
+    ctx.lineTo(e.r * 0.8, e.r * 0.8);
+    ctx.lineTo(-e.r * 0.5, e.r * 0.85);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // Charging Coils / Heat Vents on sides
+    ctx.fillStyle = e.state === 'charging' ? '#ffab00' : (e.state === 'firing' ? '#ff1744' : '#141c2e');
+    ctx.fillRect(-e.r * 0.3, -e.r * 0.7, 12, 4);
+    ctx.fillRect(-e.r * 0.3, e.r * 0.6, 12, 4);
+
+    // Glowing Central Reactor Core Orb
+    const coreColor = e.state === 'firing' ? '#ff1744' : (e.state === 'charging' ? '#ffab00' : '#d50000');
+    ctx.shadowColor = coreColor; ctx.shadowBlur = e.state === 'charging' ? 20 : 10;
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.arc(-e.r * 0.1, 0, e.r * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Optic Emitter Lens at Nose
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-e.r * 1.1, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // CHARGING ANIMATION & SIGHT BEAM
+    if (e.state === 'charging' && e.maxChargeTime > 0) {
+      const chargePct = Math.min(1, e.chargeTimer / e.maxChargeTime);
+
+      // Telegraphed Horizontal Aiming Sight Beam
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 23, 68, ${0.15 + chargePct * 0.45})`;
+      ctx.lineWidth = 1 + chargePct * 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(-e.r * 1.2, 0);
+      ctx.lineTo(-1000, 0);
+      ctx.stroke();
+      ctx.restore();
+
+      // Energy Gathering Ring Shrinking onto Lens
+      ctx.save();
+      const ringR = (1 - chargePct) * 35 + 6;
+      ctx.strokeStyle = '#ffab00';
+      ctx.shadowColor = '#ffab00'; ctx.shadowBlur = 12;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-e.r * 1.1, 0, ringR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // FIRING SUSTAINED LASER BEAM
+    if (e.state === 'firing') {
+      ctx.save();
+      ctx.fillStyle = '#ff1744';
+      ctx.shadowColor = '#ff1744'; ctx.shadowBlur = 24;
+
+      // Outer Thick Beam
+      ctx.fillRect(-1000, -10, 1000 - e.r * 1.1, 20);
+
+      // Inner Core White Beam
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 12;
+      ctx.fillRect(-1000, -4, 1000 - e.r * 1.1, 8);
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+    // Health Bar for Beam Dreadnought
+    if (e.hp < e.maxHp) {
+      ctx.save();
+      const bw = e.r * 1.8, bh = 4;
+      const bx = e.x - bw / 2, by = e.y - e.r - 12;
+      ctx.fillStyle = 'rgba(8, 10, 20, 0.8)';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = '#ff1744';
+      ctx.fillRect(bx, by, bw * (e.hp / e.maxHp), bh);
+      ctx.restore();
+    }
+    return;
+  }
+
   const isDamaged = e.hp != null && e.maxHp != null && e.hp < e.maxHp;
   let pulse = Math.sin((e.t || 0) * 8) * 0.15 + 0.85;
 
@@ -1674,6 +2396,27 @@ function drawBoss(ctx, b) {
   ctx.ellipse(-b.r * 0.35, -b.r * 0.2, b.r * 0.22, b.r * 0.12, 0, 0, Math.PI * 2);
   ctx.ellipse(-b.r * 0.35, b.r * 0.2, b.r * 0.22, b.r * 0.12, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  // Hexagonal Void Shield Matrix (when b.invulnerable === true)
+  if (b.invulnerable) {
+    ctx.save();
+    const sPulse = 0.6 + Math.sin((b.timer || 0) * 10) * 0.4;
+    ctx.strokeStyle = `rgba(124, 92, 255, ${sPulse})`;
+    ctx.shadowColor = '#7c5cff'; ctx.shadowBlur = 26 * sPulse;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    const hexR = b.r * 1.45;
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 3;
+      const hx = Math.cos(a) * hexR;
+      const hy = Math.sin(a) * hexR;
+      if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fillStyle = `rgba(124, 92, 255, ${0.08 + sPulse * 0.08})`;
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.restore();
 }
