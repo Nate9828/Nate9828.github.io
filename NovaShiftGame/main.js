@@ -16,6 +16,90 @@ function getComputedColor(varName){
 }
 
 /* ---------------------------------------------------------
+   Secure LocalStorage Utility (Obfuscated + Checksum Signed)
+ --------------------------------------------------------- */
+const SAVE_SALT = 'NovaShift_v1_SecretSalt_99823';
+
+function hashChecksum(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function xorCipher(str, key) {
+  let res = '';
+  for (let i = 0; i < str.length; i++) {
+    res += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return res;
+}
+
+function saveSecure(key, val) {
+  try {
+    const rawStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+    const chk = hashChecksum(rawStr + SAVE_SALT);
+    const payload = `${chk}:${rawStr}`;
+    const obfuscated = btoa(xorCipher(payload, SAVE_SALT));
+    localStorage.setItem(key, obfuscated);
+  } catch (e) {
+    try { localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : String(val)); } catch(err){}
+  }
+}
+
+function loadSecure(key, defaultValue) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === undefined) return defaultValue;
+
+    try {
+      const decodedPayload = xorCipher(atob(raw), SAVE_SALT);
+      const colonIdx = decodedPayload.indexOf(':');
+      if (colonIdx > -1) {
+        const chk = decodedPayload.substring(0, colonIdx);
+        const dataStr = decodedPayload.substring(colonIdx + 1);
+        const expectedChk = hashChecksum(dataStr + SAVE_SALT);
+
+        if (chk === expectedChk) {
+          if (typeof defaultValue === 'number') return parseFloat(dataStr) || 0;
+          if (typeof defaultValue === 'boolean') return dataStr === 'true';
+          if (typeof defaultValue === 'object') return JSON.parse(dataStr);
+          return dataStr;
+        }
+      }
+    } catch (e) {}
+
+    // Check if raw value is legacy unencoded
+    if (typeof defaultValue === 'number') {
+      const num = parseFloat(raw);
+      if (!isNaN(num)) {
+        saveSecure(key, num);
+        return num;
+      }
+    } else if (typeof defaultValue === 'boolean') {
+      if (raw === 'true' || raw === 'false') {
+        const boolVal = raw === 'true';
+        saveSecure(key, boolVal);
+        return boolVal;
+      }
+    } else if (typeof defaultValue === 'object') {
+      try {
+        const obj = JSON.parse(raw);
+        saveSecure(key, obj);
+        return obj;
+      } catch (e) {}
+    }
+
+    // Tampered or invalid signature
+    return defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+}
+
+/* ---------------------------------------------------------
    Canvas + sizing
 --------------------------------------------------------- */
 const bgCanvas = document.getElementById('bg');
@@ -55,11 +139,65 @@ function initStars(){
 }
 function drawStars(dt, driftX, driftY){
   bgCtx.clearRect(0,0,W,H);
-  const g = bgCtx.createRadialGradient(W*0.5,H*0.35,0, W*0.5,H*0.35, Math.max(W,H)*0.8);
-  g.addColorStop(0,'rgba(60,40,110,0.35)');
-  g.addColorStop(1,'rgba(5,6,14,0)');
-  bgCtx.fillStyle = g;
-  bgCtx.fillRect(0,0,W,H);
+
+  let theme = 'default';
+  if(mode === 'escape' && typeof escapeGame !== 'undefined' && typeof escapeGame.getBgTheme === 'function'){
+    theme = escapeGame.getBgTheme();
+  }
+
+  if(theme === 'plasma'){
+    const g = bgCtx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.4, Math.max(W,H)*0.85);
+    g.addColorStop(0, 'rgba(147, 51, 234, 0.45)');
+    g.addColorStop(0.5, 'rgba(79, 70, 229, 0.25)');
+    g.addColorStop(1, 'rgba(5, 6, 14, 1)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, W, H);
+  } else if(theme === 'cyber'){
+    bgCtx.fillStyle = '#030712';
+    bgCtx.fillRect(0, 0, W, H);
+    bgCtx.strokeStyle = 'rgba(0, 242, 254, 0.12)';
+    bgCtx.lineWidth = 1;
+    const step = 45;
+    for(let x = 0; x < W; x += step){
+      bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, H); bgCtx.stroke();
+    }
+    for(let y = 0; y < H; y += step){
+      bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(W, y); bgCtx.stroke();
+    }
+  } else if(theme === 'blackhole'){
+    bgCtx.fillStyle = '#04020a';
+    bgCtx.fillRect(0, 0, W, H);
+    const bhX = W * 0.5, bhY = H * 0.35;
+    const g = bgCtx.createRadialGradient(bhX, bhY, 10, bhX, bhY, Math.max(W,H)*0.6);
+    g.addColorStop(0, '#000000');
+    g.addColorStop(0.12, 'rgba(168, 85, 247, 0.4)');
+    g.addColorStop(0.35, 'rgba(79, 70, 229, 0.15)');
+    g.addColorStop(1, 'rgba(4, 2, 10, 1)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, W, H);
+  } else if(theme === 'cavern'){
+    bgCtx.fillStyle = '#160c04';
+    bgCtx.fillRect(0, 0, W, H);
+    const g = bgCtx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.4, Math.max(W,H)*0.8);
+    g.addColorStop(0, 'rgba(255, 140, 0, 0.35)');
+    g.addColorStop(0.5, 'rgba(180, 50, 0, 0.18)');
+    g.addColorStop(1, 'rgba(8, 4, 1, 1)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, W, H);
+  } else if(theme === 'overclocked'){
+    const g = bgCtx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.4, Math.max(W,H)*0.8);
+    g.addColorStop(0, 'rgba(255, 42, 109, 0.4)');
+    g.addColorStop(1, 'rgba(10, 5, 20, 1)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, W, H);
+  } else {
+    const g = bgCtx.createRadialGradient(W*0.5,H*0.35,0, W*0.5,H*0.35, Math.max(W,H)*0.8);
+    g.addColorStop(0,'rgba(60,40,110,0.35)');
+    g.addColorStop(1,'rgba(5,6,14,0)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,W,H);
+  }
+
   for(const s of stars){
     s.tw += dt*0.002;
     s.x -= driftX*s.speed*dt*0.05;
@@ -68,7 +206,7 @@ function drawStars(dt, driftX, driftY){
     if(s.y<0) s.y+=H; if(s.y>H) s.y-=H;
     const a = 0.4 + Math.sin(s.tw)*0.35;
     bgCtx.globalAlpha = clamp(a,0.1,0.9);
-    bgCtx.fillStyle = '#cfe0ff';
+    bgCtx.fillStyle = theme === 'cyber' ? '#7dd3fc' : (theme === 'plasma' ? '#e9d5ff' : (theme === 'cavern' ? '#fed7aa' : '#cfe0ff'));
     bgCtx.beginPath();
     bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
     bgCtx.fill();
@@ -97,6 +235,10 @@ function updateInputPos(e){
   const p = pointerPos(e);
   if (mode === 'assault' && typeof assault !== 'undefined' && typeof assault.getViewport === 'function') {
     const vp = assault.getViewport();
+    input.x = (p.x - vp.ox) / vp.scale;
+    input.y = (p.y - vp.oy) / vp.scale;
+  } else if (mode === 'escape' && typeof escapeGame !== 'undefined' && typeof escapeGame.getViewport === 'function') {
+    const vp = escapeGame.getViewport();
     input.x = (p.x - vp.ox) / vp.scale;
     input.y = (p.y - vp.oy) / vp.scale;
   } else {
@@ -164,6 +306,7 @@ function onPress(e){
    HUD helpers
 --------------------------------------------------------- */
 const hudLeft = document.getElementById('hud-left');
+const hudCenter = document.getElementById('hud-center');
 const modeTag = document.getElementById('mode-tag');
 const controlsHint = document.getElementById('controls-hint');
 const overlay = document.getElementById('overlay');
@@ -180,42 +323,51 @@ function heartsHTML(lives,max){
 
 function renderHUD(){
   if(mode==='escape'){
+    const z = (typeof escapeGame !== 'undefined' && typeof escapeGame.getZoneConfig === 'function') ? escapeGame.getZoneConfig() : { badge: 'ZONE 1', name: 'Asteroid Belt' };
     hudLeft.innerHTML = `
-      <div class="hud-chip"><span class="hud-label">Score</span><span class="hud-value" id="hv-score">${escapeGame.score}</span></div>
-      <div class="hud-chip"><span id="hearts">${heartsHTML(escapeGame.lives, escapeGame.maxLives)}</span></div>
+      <div class="hud-chip"><span class="hud-label" id="escape-obj-lbl">DISTANCE</span><span class="hud-value" id="escape-obj-val">5000m</span></div>
+      <div class="hud-chip"><span class="hud-label">Score</span><span class="hud-value" id="hv-score">${escapeGame.score||0}</span></div>
     `;
-    modeTag.textContent = 'Escape Mode';
+    if(hudCenter){
+      hudCenter.innerHTML = `
+        <div class="hud-chip"><span id="hearts">${heartsHTML(escapeGame.lives||3, escapeGame.maxLives||3)}</span></div>
+      `;
+    }
+    modeTag.textContent = `${z.badge}: ${z.name}`;
     modeTag.className = 'mode-tag escape';
-    controlsHint.textContent = 'Move mouse/finger to steer, or use WASD / Arrows';
+    modeTag.style.display = 'block';
+    modeTag.id = 'escape-zone-tag';
+    controlsHint.textContent = 'Move mouse/finger to steer, or use WASD / Arrows (No Shooting - Evade Hazards!)';
   } else {
+    if(hudCenter) hudCenter.innerHTML = '';
     const diffLabel = assault.selectedDifficulty === 'hard' ? ' (HARD)' : (assault.selectedDifficulty === 'endless' ? ' (ENDLESS)' : '');
     hudLeft.innerHTML = `
-      <div class="hud-chip"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}</span></div>
+      <div class="hud-chip" id="hud-wave-chip" style="position:relative;"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}</span></div>
       <div class="hud-chip"><span class="hud-label">Points</span><span class="hud-value" id="hv-points">${assault.points||0}</span></div>
       <div class="hud-chip"><span class="hud-label">Base</span><div id="healthbar-wrap"><div id="healthbar" style="width:${clamp((assault.health / (assault.maxHealth || 100)) * 100, 0, 100)}%"></div></div></div>
       <div class="upgrade-bar" id="upgrade-bar"></div>
     `;
-    modeTag.textContent = 'Assault Mode' + diffLabel;
-    modeTag.className = 'mode-tag assault';
+    if (diffLabel) {
+      modeTag.textContent = diffLabel.trim();
+      modeTag.className = 'mode-tag assault';
+      modeTag.style.display = 'block';
+    } else {
+      modeTag.textContent = '';
+      modeTag.style.display = 'none';
+    }
     controlsHint.textContent = 'Hold click/touch to steer & fire. Keys 1-3 for upgrades';
     if(typeof renderUpgradesHTML === 'function') renderUpgradesHTML();
   }
 }
 
 function getAssaultUnlocks() {
-  try {
-    const saved = localStorage.getItem('nova_assault_unlocks');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {}
-  return { hard: false, endless: false };
+  return loadSecure('nova_assault_unlocks', { hard: false, endless: false });
 }
 
 function setAssaultUnlock(key) {
   const curr = getAssaultUnlocks();
   curr[key] = true;
-  try {
-    localStorage.setItem('nova_assault_unlocks', JSON.stringify(curr));
-  } catch (e) {}
+  saveSecure('nova_assault_unlocks', curr);
 }
 
 function gateSVG(m){
@@ -235,7 +387,6 @@ function gateSVG(m){
 }
 
 function requestFullscreenMode() {
-  // Only auto-trigger fullscreen on mobile/tablet touch devices with constrained viewports
   const isMobileTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
                         (window.innerWidth <= 1024 || window.innerHeight <= 600);
   if (!isMobileTouch) return;
@@ -279,18 +430,80 @@ function showStart(){
     `;
   }
 
+  let escapeHTML = '';
+  if (m === 'escape') {
+    const isUnlocked = (typeof escapeGame !== 'undefined' && escapeGame.unlockedOverclocked) || loadSecure('novashift_escape_unlocked_overclocked', false);
+    const isOverclockedActive = typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode;
+    const bestScore = typeof escapeGame !== 'undefined' ? escapeGame.best : 0;
+
+    escapeHTML = `
+      <div class="diff-selector escape-mode-selector" style="margin-bottom:10px; display:flex; gap:8px; justify-content:center;">
+        <button type="button" class="diff-btn ${!isOverclockedActive ? 'active' : ''}" id="btn-mode-normal">
+          Standard Run
+        </button>
+        <button type="button" class="diff-btn ${isOverclockedActive ? 'active' : ''} ${isUnlocked ? '' : 'locked'}" id="btn-mode-overclocked" title="${isUnlocked ? 'Endless Overclocked Mode' : 'Reach Zone 6 to unlock'}">
+          ⚡ Endless Overclocked ${isUnlocked ? '' : '🔒'}
+        </button>
+      </div>
+      <div style="font-size:0.85rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; text-align:center; margin-bottom:12px;">
+        Best Score (${isOverclockedActive ? 'Overclocked' : 'Normal'}): <b style="color:#fff;" id="escape-best-score-display">${bestScore}</b>
+      </div>
+    `;
+  }
+
   panel.innerHTML = `
     <h1 class="title">NOVA SHIFT</h1>
     <p class="subtitle">One world. The goal depends on how you hold it.</p>
     <div id="gate">${gateSVG(m)}</div>
     <h2 class="mode-heading ${m}">${m==='escape' ? 'Escape Mode' : 'Assault Mode'}</h2>
     ${ m==='escape'
-      ? `<p class="desc">There is no end &mdash; only how long you last. Dodge the falling wreckage, grab <b>crystals</b> for score, and survive as long as you can with <b>3 lives</b>.</p>`
-      : `<p class="desc">Tactical base defense. Earn points for upgrades, collect power-ups, and defeat the <b>Leviathan Flagship</b>.</p>${diffHTML}`
+      ? `<p class="desc">${(typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) ? '⚡ <b>Endless Overclocked Mode</b>: Maximum speed, unrelenting hazard chaos. Test your steering reflexes and survive as long as possible!' : 'High-speed evasive piloting. Navigate through increasingly intense hazardous sectors, adapt to shifting space anomalies, and escape into hypergate warps.'}</p>${escapeHTML}`
+      : `<p class="desc">Tactical base defense. Eliminate incoming enemy armadas, upgrade your ship weapons, and defend your core against boss flagships.</p>${diffHTML}`
     }
     <div class="rotate-hint">⟳ Rotate your device to switch objectives entirely</div>
-    <button id="btn-start">${m==='escape' ? 'Start Run' : 'Launch Defense'}</button>
+    <div class="start-btn-row">
+      <button id="btn-start" style="flex:1;">${m==='escape' ? ((typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) ? '⚡ Launch Overclocked' : 'Start Run') : 'Launch Defense'}</button>
+      ${m === 'escape' ? `<button type="button" id="btn-escape-settings" class="btn-settings-cog" title="Escape Mode Settings">⚙️</button>` : ''}
+    </div>
   `;
+
+  if (m === 'escape') {
+    const btnNorm = panel.querySelector('#btn-mode-normal');
+    const btnOver = panel.querySelector('#btn-mode-overclocked');
+    const btnSettings = panel.querySelector('#btn-escape-settings');
+    const isUnlocked = (typeof escapeGame !== 'undefined' && escapeGame.unlockedOverclocked) || loadSecure('novashift_escape_unlocked_overclocked', false);
+
+    if (btnSettings) {
+      btnSettings.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof escapeGame !== 'undefined' && typeof escapeGame.openSettingsModal === 'function') {
+          escapeGame.openSettingsModal();
+        }
+      });
+    }
+
+    if (btnNorm) {
+      btnNorm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof escapeGame !== 'undefined') escapeGame.isOverclockedMode = false;
+        showStart();
+      });
+    }
+
+    if (btnOver) {
+      btnOver.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!isUnlocked) {
+          if (typeof showWaveAnnouncement === 'function') {
+            showWaveAnnouncement('🔒 LOCKED', 'REACH ZONE 6 IN NORMAL MODE TO UNLOCK', false);
+          }
+          return;
+        }
+        if (typeof escapeGame !== 'undefined') escapeGame.isOverclockedMode = true;
+        showStart();
+      });
+    }
+  }
 
   if (m === 'assault') {
     panel.querySelectorAll('.diff-btn').forEach(btn => {
@@ -316,9 +529,18 @@ function showStart(){
   document.getElementById('btn-start').addEventListener('click', ()=>{
     requestFullscreenMode();
     overlay.classList.add('hidden');
-    if(m==='escape') escapeGame.start(); else assault.start();
+    if (m === 'escape') {
+      if (typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) {
+        escapeGame.startOverclocked();
+      } else {
+        escapeGame.start();
+      }
+    } else {
+      assault.start();
+    }
   });
 }
+window.showStartScreen = showStart;
 
 /* ---------------------------------------------------------
    Shared particle helpers
@@ -345,7 +567,10 @@ function drawParticles(ctx,arr){
 --------------------------------------------------------- */
 function onResizeGameplay(){
   initStars();
-  if(typeof escapeGame !== 'undefined' && escapeGame.player) escapeGame.player.y = H - Math.max(90,H*0.14);
+  if(typeof escapeGame !== 'undefined' && escapeGame.player && typeof escapeGame.getViewport === 'function') {
+    const vp = escapeGame.getViewport();
+    escapeGame.player.y = vp.vh - Math.max(90, vp.vh * 0.14);
+  }
   if(typeof assault !== 'undefined' && assault.turret) assault.turret.x = Math.max(70, assault.vw * 0.09);
 }
 
