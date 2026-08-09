@@ -600,6 +600,23 @@ function resetGame() {
   ensurePoints();
 }
 
+// Helper function to notify parent window (index.html) of pause/menu state for nav toggle button
+function notifyNavToggleState() {
+  const isPausedOrMenu = (state !== 'playing') || isPaused;
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'TIDAL_NAV_TOGGLE_STATE',
+        showNavToggle: isPausedOrMenu,
+        state: state,
+        isPaused: isPaused
+      }, '*');
+    }
+  } catch (e) {
+    // Ignore cross-origin error if any
+  }
+}
+
 // Pause Control Functions
 function pauseGame() {
   if (state === 'playing' && !isPaused) {
@@ -619,6 +636,7 @@ function pauseGame() {
         <div style="font-size:16px; color:var(--glow-teal); font-weight:bold;">Top Score: ${best}</div>
       `;
     }
+    notifyNavToggleState();
   }
 }
 
@@ -633,6 +651,7 @@ function resumeGame() {
     activeTouchId = null;
     touchMoved = false;
     justResumedTime = performance.now();
+    notifyNavToggleState();
   }
 }
 
@@ -691,6 +710,7 @@ function startGame() {
   state = 'playing';
   overlay.style.opacity = '0';
   overlay.style.pointerEvents = 'none';
+  notifyNavToggleState();
 }
 
 /**
@@ -723,6 +743,7 @@ function endGame() {
     `;
   }
   startBtn.textContent = 'Drift again';
+  notifyNavToggleState();
 }
 
 // -----------------------------------------------------------------------------
@@ -1590,3 +1611,80 @@ if (pauseBtn) {
   pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
   pauseBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: false });
 }
+
+// Fullscreen Button Logic
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+function isFullscreenMode() {
+  let pDoc = null;
+  try { pDoc = (window.parent && window.parent.document) ? window.parent.document : null; } catch (e) {}
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement ||
+            (pDoc && (pDoc.fullscreenElement || pDoc.webkitFullscreenElement || pDoc.mozFullScreenElement || pDoc.msFullscreenElement)));
+}
+
+function updateFullscreenIcon() {
+  if (!fullscreenBtn) return;
+  if (isFullscreenMode()) {
+    fullscreenBtn.setAttribute('title', 'Exit Fullscreen');
+    fullscreenBtn.setAttribute('aria-label', 'Exit Fullscreen');
+  } else {
+    fullscreenBtn.setAttribute('title', 'Toggle Fullscreen');
+    fullscreenBtn.setAttribute('aria-label', 'Toggle Fullscreen');
+  }
+}
+
+function toggleGameFullscreen() {
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'TOGGLE_FULLSCREEN' }, '*');
+    }
+  } catch (e) {}
+
+  const doc = document;
+  const docEl = doc.documentElement;
+  if (!isFullscreenMode()) {
+    if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+    else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+    else if (docEl.mozRequestFullScreen) docEl.mozRequestFullScreen();
+    else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+  } else {
+    if (doc.exitFullscreen) doc.exitFullscreen().catch(() => {});
+    else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+    else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
+    else if (doc.msExitFullscreen) doc.msExitFullscreen();
+  }
+
+  setTimeout(updateFullscreenIcon, 150);
+}
+
+if (fullscreenBtn) {
+  fullscreenBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleGameFullscreen();
+  });
+  fullscreenBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    toggleGameFullscreen();
+  }, { passive: false });
+}
+
+document.addEventListener('fullscreenchange', updateFullscreenIcon);
+document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+document.addEventListener('mozfullscreenchange', updateFullscreenIcon);
+document.addEventListener('MSFullscreenChange', updateFullscreenIcon);
+try {
+  if (window.parent && window.parent.document) {
+    window.parent.document.addEventListener('fullscreenchange', updateFullscreenIcon);
+    window.parent.document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+  }
+} catch (e) {}
+
+// Listen for state request from parent window
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'REQUEST_NAV_TOGGLE_STATE') {
+    notifyNavToggleState();
+  }
+});
+
+// Broadcast initial nav toggle state on game engine initialization
+notifyNavToggleState();

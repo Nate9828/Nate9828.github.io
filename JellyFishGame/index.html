@@ -47,7 +47,13 @@ title: Tidal - Jellyfish Game
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease, opacity 0.25s ease, visibility 0.25s ease;
+  }
+
+  .nav-toggle-btn.game-playing-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
   }
 
   .nav-toggle-btn:hover {
@@ -100,7 +106,7 @@ title: Tidal - Jellyfish Game
 
 <div class="game-page-wrapper">
   <div class="game-iframe-container">
-    <iframe src="{{ '/JellyFishGame/tidal_game.html' | relative_url }}" title="Tidal Game" allow="autoplay"></iframe>
+    <iframe src="{{ '/JellyFishGame/tidal_game.html' | relative_url }}" title="Tidal Game" allow="autoplay; fullscreen" allowfullscreen></iframe>
   </div>
 </div>
 
@@ -109,6 +115,7 @@ title: Tidal - Jellyfish Game
     const nav = document.querySelector('nav');
     const toggleBtn = document.getElementById('nav-toggle-btn');
     const toggleIcon = document.getElementById('nav-toggle-icon');
+    const iframe = document.querySelector('.game-iframe-container iframe');
 
     if (nav && toggleBtn && toggleIcon) {
       toggleBtn.addEventListener('click', () => {
@@ -123,6 +130,59 @@ title: Tidal - Jellyfish Game
           toggleIcon.className = 'bi bi-list';
           toggleBtn.setAttribute('title', 'Open Navigation');
           toggleBtn.setAttribute('aria-label', 'Open Navigation');
+        }
+      });
+    }
+
+    function updateNavToggleVisibility(show) {
+      if (!toggleBtn) return;
+      if (show) {
+        toggleBtn.classList.remove('game-playing-hidden');
+      } else {
+        toggleBtn.classList.add('game-playing-hidden');
+        if (nav && nav.classList.contains('nav-expanded')) {
+          nav.classList.remove('nav-expanded');
+          toggleBtn.classList.remove('expanded');
+          if (toggleIcon) toggleIcon.className = 'bi bi-list';
+          toggleBtn.setAttribute('title', 'Open Navigation');
+          toggleBtn.setAttribute('aria-label', 'Open Navigation');
+        }
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+        else if (docEl.mozRequestFullScreen) docEl.mozRequestFullScreen();
+        else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+      }
+    }
+
+    // Listen for game state & fullscreen messages from the embedded JellyFish game iframe
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'TIDAL_NAV_TOGGLE_STATE') {
+        updateNavToggleVisibility(event.data.showNavToggle);
+      } else if (event.data && event.data.type === 'TOGGLE_FULLSCREEN') {
+        toggleFullscreen();
+      }
+    });
+
+    // Request current state from iframe on load
+    if (iframe) {
+      iframe.addEventListener('load', () => {
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'REQUEST_NAV_TOGGLE_STATE' }, '*');
+          }
+        } catch (e) {
+          // Ignore
         }
       });
     }
