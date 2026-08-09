@@ -283,6 +283,8 @@ window.addEventListener('keydown', e=>{
       assault.buyUpgrade('spread');
     } else if(e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3'){
       assault.buyUpgrade('laser');
+    } else if(e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4'){
+      assault.buyUpgrade('pulse_turrets');
     }
   }
 }, {passive:true});
@@ -355,7 +357,7 @@ function renderHUD(){
       modeTag.textContent = '';
       modeTag.style.display = 'none';
     }
-    controlsHint.textContent = 'Hold click/touch to steer & fire. Keys 1-3 for upgrades';
+    controlsHint.textContent = (assault.selectedDifficulty === 'endless' && assault.wave > 9) ? 'Hold click/touch to steer & fire. Keys 1-4 for upgrades & pulse turrets' : 'Hold click/touch to steer & fire. Keys 1-3 for upgrades';
     if(typeof renderUpgradesHTML === 'function') renderUpgradesHTML();
   }
 }
@@ -417,6 +419,7 @@ function showStart(){
 
   let diffHTML = '';
   if (m === 'assault') {
+    const highestWave = (typeof assault !== 'undefined' && typeof assault.getHighestEndlessWave === 'function') ? assault.getHighestEndlessWave() : loadSecure('novashift_assault_highest_wave', 0);
     diffHTML = `
       <div class="diff-selector">
         <button type="button" class="diff-btn ${currentDiff === 'normal' ? 'active' : ''}" data-diff="normal">⚔️ Normal</button>
@@ -426,6 +429,9 @@ function showStart(){
         <button type="button" class="diff-btn ${currentDiff === 'endless' ? 'active' : ''} ${unlocks.endless ? '' : 'locked'}" data-diff="endless" title="${unlocks.endless ? 'Endless Mode' : 'Win Hard Mode to unlock'}">
           ♾️ Endless ${unlocks.endless ? '' : '🔒'}
         </button>
+      </div>
+      <div id="assault-highest-wave-container" style="font-size:0.85rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; text-align:center; margin-bottom:12px; display:${currentDiff === 'endless' ? 'block' : 'none'};">
+        Highest Wave (Endless): <b style="color:#fff;" id="assault-highest-wave-display">${highestWave}</b>
       </div>
     `;
   }
@@ -521,6 +527,11 @@ function showStart(){
         if (typeof assault !== 'undefined') assault.selectedDifficulty = diff;
         panel.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+
+        const highestContainer = document.getElementById('assault-highest-wave-container');
+        if (highestContainer) {
+          highestContainer.style.display = diff === 'endless' ? 'block' : 'none';
+        }
       });
     });
   }

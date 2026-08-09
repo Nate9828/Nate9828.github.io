@@ -1,10 +1,13 @@
 /* ==========================================================================
-   DEBUG MODE CONTROLS (Escape Mode)
-   #NOTE - Escape Mode Debug code
+   DEBUG MODE CONTROLS (Escape Mode & Assault Mode)
    ========================================================================== */
 
-(function initEscapeDebugControls() {
+/**
+ * Initializes Escape Mode Debug Controls dropdown and HUD trigger.
+ */
+function initEscapeDebugControls() {
     if (typeof document === 'undefined') return;
+    if (document.getElementById('escape-debug-dropdown')) return;
 
     // 1. Inject debug styles
     const debugStyle = document.createElement('style');
@@ -196,31 +199,39 @@
     });
 
     document.getElementById('escape-debug-zone-dec').addEventListener('click', () => {
+        if (typeof escapeGame === 'undefined') return;
         const currentZoneNum = (escapeGame.currentZoneIdx || 0) + 1;
         const targetZone = Math.max(1, currentZoneNum - 1);
-        escapeGame.jumpToZone(targetZone);
+        if (typeof escapeGame.jumpToZone === 'function') escapeGame.jumpToZone(targetZone);
         updateDebugUI();
     });
 
     document.getElementById('escape-debug-zone-inc').addEventListener('click', () => {
+        if (typeof escapeGame === 'undefined') return;
         const currentZoneNum = (escapeGame.currentZoneIdx || 0) + 1;
         const targetZone = currentZoneNum + 1;
-        escapeGame.jumpToZone(targetZone);
+        if (typeof escapeGame.jumpToZone === 'function') escapeGame.jumpToZone(targetZone);
         updateDebugUI();
     });
 
     document.getElementById('escape-debug-zone-3').addEventListener('click', () => {
-        escapeGame.jumpToZone(3);
+        if (typeof escapeGame !== 'undefined' && typeof escapeGame.jumpToZone === 'function') {
+            escapeGame.jumpToZone(3);
+        }
         updateDebugUI();
     });
 
     document.getElementById('escape-debug-zone-5').addEventListener('click', () => {
-        escapeGame.jumpToZone(5);
+        if (typeof escapeGame !== 'undefined' && typeof escapeGame.jumpToZone === 'function') {
+            escapeGame.jumpToZone(5);
+        }
         updateDebugUI();
     });
 
     document.getElementById('escape-debug-zone-6').addEventListener('click', () => {
-        escapeGame.jumpToZone(6);
+        if (typeof escapeGame !== 'undefined' && typeof escapeGame.jumpToZone === 'function') {
+            escapeGame.jumpToZone(6);
+        }
         updateDebugUI();
     });
 
@@ -232,8 +243,8 @@
         modeTag.style.cursor = 'pointer';
         modeTag.style.pointerEvents = 'auto';
 
-        if (!modeTag.dataset.debugBound) {
-            modeTag.dataset.debugBound = 'true';
+        if (!modeTag.dataset.escapeDebugBound) {
+            modeTag.dataset.escapeDebugBound = 'true';
             modeTag.addEventListener('click', (e) => {
                 if (typeof mode !== 'undefined' && mode !== 'escape') return;
                 e.stopPropagation();
@@ -264,19 +275,14 @@
             attachDebugTrigger();
         }
     }, 500);
-})();
+}
 
-/* ==========================================================================
-   END DEBUG MODE CONTROLS (Escape Mode)
-   ========================================================================== */
-//    #NOTE Assault Mode Debug Controls
-/* ==========================================================================
-DEBUG MODE CONTROLS (Assault Mode)
-========================================================================== */
-
-
-(function initAssaultDebugControls() {
+/**
+ * Initializes Assault Mode Debug Controls dropdown and HUD trigger.
+ */
+function initAssaultDebugControls() {
     if (typeof document === 'undefined') return;
+    if (document.getElementById('debug-dropdown')) return;
 
     // 1. Inject debug styles
     const debugStyle = document.createElement('style');
@@ -439,6 +445,18 @@ DEBUG MODE CONTROLS (Assault Mode)
     </div>
     
     <div class="debug-section">
+      <div class="debug-section-title">WAVE CONTROL</div>
+      
+      <div class="debug-row">
+        <span class="debug-label">🌊 Current Wave: <b id="debug-val-wave">1</b></span>
+        <div class="debug-btn-group">
+          <button type="button" class="debug-btn" id="debug-wave-dec">-</button>
+          <button type="button" class="debug-btn" id="debug-wave-inc">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="debug-section">
       <div class="debug-section-title">FREE UPGRADES</div>
       
       <div class="debug-row">
@@ -470,7 +488,9 @@ DEBUG MODE CONTROLS (Assault Mode)
       <div class="debug-section-title">WAVE JUMP</div>
       <div class="debug-wave-group">
         <button type="button" class="debug-wave-btn" id="debug-wave-3">Wave 3</button>
-        <button type="button" class="debug-wave-btn" id="debug-wave-boss">Boss Wave</button>
+        <button type="button" class="debug-wave-btn" id="debug-wave-boss">Boss (W4)</button>
+        <button type="button" class="debug-wave-btn" id="debug-wave-10">Wave 10</button>
+        <button type="button" class="debug-wave-btn" id="debug-wave-20">Wave 20</button>
       </div>
     </div>
   `;
@@ -487,9 +507,13 @@ DEBUG MODE CONTROLS (Assault Mode)
         const r = document.getElementById('debug-val-rate');
         const s = document.getElementById('debug-val-spread');
         const l = document.getElementById('debug-val-laser');
-        if (r) r.textContent = assault.fireRateLevel;
-        if (s) s.textContent = assault.multishotLevel;
-        if (l) l.textContent = assault.fortifyLevel;
+        const w = document.getElementById('debug-val-wave');
+        if (typeof assault !== 'undefined') {
+            if (r) r.textContent = assault.fireRateLevel || 1;
+            if (s) s.textContent = assault.multishotLevel || 1;
+            if (l) l.textContent = assault.fortifyLevel || 1;
+            if (w) w.textContent = assault.wave || 1;
+        }
     }
 
     // Event handlers
@@ -497,70 +521,132 @@ DEBUG MODE CONTROLS (Assault Mode)
         dropdown.classList.add('hidden');
     });
 
+    document.getElementById('debug-wave-dec').addEventListener('click', () => {
+        if (typeof assault === 'undefined') return;
+        ensureAssaultJumpToWave();
+        const currentWave = assault.wave || 1;
+        const targetWave = Math.max(1, currentWave - 1);
+        if (typeof assault.jumpToWave === 'function') {
+            assault.jumpToWave(targetWave);
+        }
+        updateDebugUI();
+    });
+
+    document.getElementById('debug-wave-inc').addEventListener('click', () => {
+        if (typeof assault === 'undefined') return;
+        ensureAssaultJumpToWave();
+        const currentWave = assault.wave || 1;
+        const maxWave = assault.selectedDifficulty === 'endless' ? 999 : 4;
+        const targetWave = Math.min(maxWave, currentWave + 1);
+        if (typeof assault.jumpToWave === 'function') {
+            assault.jumpToWave(targetWave);
+        }
+        updateDebugUI();
+    });
+
     document.getElementById('debug-rate-dec').addEventListener('click', () => {
-        assault.fireRateLevel = clamp(assault.fireRateLevel - 1, 1, 3);
+        if (typeof assault === 'undefined') return;
+        assault.fireRateLevel = Math.max(1, Math.min(3, (assault.fireRateLevel || 1) - 1));
         if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
         updateDebugUI();
     });
     document.getElementById('debug-rate-inc').addEventListener('click', () => {
-        assault.fireRateLevel = clamp(assault.fireRateLevel + 1, 1, 3);
+        if (typeof assault === 'undefined') return;
+        assault.fireRateLevel = Math.max(1, Math.min(3, (assault.fireRateLevel || 1) + 1));
         if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
         updateDebugUI();
     });
 
     document.getElementById('debug-spread-dec').addEventListener('click', () => {
-        assault.multishotLevel = clamp(assault.multishotLevel - 1, 1, 3);
+        if (typeof assault === 'undefined') return;
+        assault.multishotLevel = Math.max(1, Math.min(3, (assault.multishotLevel || 1) - 1));
         if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
         updateDebugUI();
     });
     document.getElementById('debug-spread-inc').addEventListener('click', () => {
-        assault.multishotLevel = clamp(assault.multishotLevel + 1, 1, 3);
+        if (typeof assault === 'undefined') return;
+        assault.multishotLevel = Math.max(1, Math.min(3, (assault.multishotLevel || 1) + 1));
         if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
         updateDebugUI();
     });
 
     document.getElementById('debug-laser-dec').addEventListener('click', () => {
-        assault.fortifyLevel = clamp(assault.fortifyLevel - 1, 1, 3);
+        if (typeof assault === 'undefined') return;
+        assault.fortifyLevel = Math.max(1, Math.min(3, (assault.fortifyLevel || 1) - 1));
         assault.maxHealth = assault.fortifyLevel === 1 ? 100 : (assault.fortifyLevel === 2 ? 150 : 200);
         assault.health = Math.min(assault.maxHealth, assault.health);
         if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
         updateDebugUI();
     });
     document.getElementById('debug-laser-inc').addEventListener('click', () => {
-        assault.fortifyLevel = clamp(assault.fortifyLevel + 1, 1, 3);
+        if (typeof assault === 'undefined') return;
+        assault.fortifyLevel = Math.max(1, Math.min(3, (assault.fortifyLevel || 1) + 1));
         assault.maxHealth = assault.fortifyLevel === 1 ? 100 : (assault.fortifyLevel === 2 ? 150 : 200);
         assault.health = Math.min(assault.maxHealth, assault.health + 50);
         if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
         updateDebugUI();
     });
 
-    // Wave Jump logic
-    assault.jumpToWave = function (w) {
-        if (this.state !== 'playing') this.state = 'playing';
-        if (typeof overlay !== 'undefined' && overlay) overlay.classList.add('hidden');
-        this.wave = w;
-        this.enemies = [];
-        this.missiles = [];
-        this.enemyBolts = [];
-        this.bolts = [];
-        this.drops = [];
-        this.particles = [];
-        removeBossHUD();
-        this.beginWave();
-        if (typeof renderHUD === 'function') renderHUD();
-        if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
-    };
+    // Wave Jump helper logic
+    function ensureAssaultJumpToWave() {
+        if (typeof assault !== 'undefined' && !assault.jumpToWave) {
+            assault.jumpToWave = function (w) {
+                if (this.state !== 'playing') this.state = 'playing';
+                if (typeof overlay !== 'undefined' && overlay) overlay.classList.add('hidden');
+                this.wave = w;
+                if (typeof this.checkHighestWave === 'function') this.checkHighestWave();
+                this.enemies = [];
+                this.missiles = [];
+                this.enemyBolts = [];
+                this.bolts = [];
+                this.drops = [];
+                this.particles = [];
+                if (typeof removeBossHUD === 'function') removeBossHUD();
+                if (typeof this.beginWave === 'function') this.beginWave();
+                if (typeof renderHUD === 'function') renderHUD();
+                if (typeof renderAssaultHUDNumbers === 'function') renderAssaultHUDNumbers();
+            };
+        }
+    }
 
     document.getElementById('debug-wave-3').addEventListener('click', () => {
-        assault.jumpToWave(3);
-        updateDebugUI();
-    });
-    document.getElementById('debug-wave-boss').addEventListener('click', () => {
-        assault.jumpToWave(4);
+        ensureAssaultJumpToWave();
+        if (typeof assault !== 'undefined' && typeof assault.jumpToWave === 'function') {
+            assault.jumpToWave(3);
+        }
         updateDebugUI();
     });
 
-    // Attach invisible button to #mode-tag
+    document.getElementById('debug-wave-boss').addEventListener('click', () => {
+        ensureAssaultJumpToWave();
+        if (typeof assault !== 'undefined' && typeof assault.jumpToWave === 'function') {
+            assault.jumpToWave(4);
+        }
+        updateDebugUI();
+    });
+
+    const w10Btn = document.getElementById('debug-wave-10');
+    if (w10Btn) {
+        w10Btn.addEventListener('click', () => {
+            ensureAssaultJumpToWave();
+            if (typeof assault !== 'undefined' && typeof assault.jumpToWave === 'function') {
+                assault.jumpToWave(10);
+            }
+            updateDebugUI();
+        });
+    }
+
+    const w20Btn = document.getElementById('debug-wave-20');
+    if (w20Btn) {
+        w20Btn.addEventListener('click', () => {
+            ensureAssaultJumpToWave();
+            if (typeof assault !== 'undefined' && typeof assault.jumpToWave === 'function') {
+                assault.jumpToWave(20);
+            }
+            updateDebugUI();
+        });
+    }
+
     // Attach debug trigger button directly above Wave HUD button
     function attachDebugToWaveChip() {
         const waveChip = document.getElementById('hud-wave-chip') || (document.getElementById('hv-wave') ? document.getElementById('hv-wave').closest('.hud-chip') : null);
@@ -569,8 +655,8 @@ DEBUG MODE CONTROLS (Assault Mode)
         waveChip.style.position = 'relative';
         waveChip.style.cursor = 'pointer';
 
-        if (!waveChip.dataset.debugBound) {
-            waveChip.dataset.debugBound = 'true';
+        if (!waveChip.dataset.assaultDebugBound) {
+            waveChip.dataset.assaultDebugBound = 'true';
             waveChip.addEventListener('click', (e) => {
                 if (typeof mode !== 'undefined' && mode !== 'assault') return;
                 e.stopPropagation();
@@ -626,8 +712,27 @@ DEBUG MODE CONTROLS (Assault Mode)
             attachDebugToWaveChip();
         }
     }, 500);
-})();
+}
 
-/* ==========================================================================
-   END DEBUG MODE CONTROLS (Assault Mode)
-   ========================================================================== */
+// Global exports for browser and node environments
+if (typeof window !== 'undefined') {
+    window.initEscapeDebugControls = initEscapeDebugControls;
+    window.initAssaultDebugControls = initAssaultDebugControls;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { initEscapeDebugControls, initAssaultDebugControls };
+}
+
+// Auto-initialize controls when DOM is ready
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            initEscapeDebugControls();
+            initAssaultDebugControls();
+        });
+    } else {
+        initEscapeDebugControls();
+        initAssaultDebugControls();
+    }
+}

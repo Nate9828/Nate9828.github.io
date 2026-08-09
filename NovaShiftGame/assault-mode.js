@@ -10,6 +10,40 @@ const assault = {
   wave: 1, totalWaves: 4, kills: 0, points: 0, health: 100,
   vw: 960, vh: 540,
   selectedDifficulty: 'normal', // normal | hard | endless
+  highestEndlessWave: typeof loadSecure === 'function' ? loadSecure('novashift_assault_highest_wave', 0) : 0,
+
+  getHighestEndlessWave() {
+    if (typeof loadSecure === 'function') {
+      const saved = loadSecure('novashift_assault_highest_wave', 0);
+      if (saved > (this.highestEndlessWave || 0)) {
+        this.highestEndlessWave = saved;
+      }
+    }
+    return this.highestEndlessWave || 0;
+  },
+
+  checkHighestWave() {
+    if (this.selectedDifficulty === 'endless') {
+      const w = this.wave;
+      if (w > (this.highestEndlessWave || 0)) {
+        this.highestEndlessWave = w;
+        if (typeof saveSecure === 'function') {
+          saveSecure('novashift_assault_highest_wave', w);
+        } else {
+          try { localStorage.setItem('novashift_assault_highest_wave', String(w)); } catch(e){}
+        }
+      }
+    }
+  },
+
+  resetHighestEndlessWave() {
+    this.highestEndlessWave = 0;
+    if (typeof saveSecure === 'function') {
+      saveSecure('novashift_assault_highest_wave', 0);
+    } else {
+      try { localStorage.removeItem('novashift_assault_highest_wave'); } catch(e){}
+    }
+  },
   solarFlareState: 'idle', // idle | warning | firing
   solarFlareTimer: 0,
   solarFlareLanes: [],
@@ -44,13 +78,18 @@ const assault = {
     this.fireRateLevel = 1; this.multishotLevel = 1; this.fortifyLevel = 1;
     this.maxHealth = 100; this.health = 100;
     this.overchargeTimer = 0; this.healthFlashTimer = 0; this.shieldCount = 0; this.shields = []; this.lastShotTime = 0;
-    this.solarFlareState = 'idle';
-    this.solarFlareTimer = this.selectedDifficulty === 'hard' ? randInt(18000, 26000) : 0;
-    this.solarFlareLanes = [];
+    this.pulseTurretCost = 600;
+    this.activePulseTurrets = [];
+    this.currentMutator = null;
+    this.activeSolarFlares = [];
+    this.solarFlareSpawnTimer = this.selectedDifficulty === 'hard' ? randInt(18000, 26000) : 0;
     this.bolts = []; this.enemyBolts = []; this.missiles = []; this.enemies = []; this.drops = []; this.particles = []; this.boss = null;
     this.turret.x = Math.max(70, W * 0.09); this.turret.y = H / 2; this.turret.vx = 0; this.turret.vy = 0;
 
     lastUpgradesState = '';
+    if (this.selectedDifficulty === 'endless') {
+      this.checkHighestWave();
+    }
     this.beginWave();
     renderHUD();
     renderUpgradesHTML(true);
@@ -58,11 +97,15 @@ const assault = {
   },
 
   beginWave() {
+    if (this.selectedDifficulty === 'endless') {
+      this.checkHighestWave();
+    }
     const isHard = this.selectedDifficulty === 'hard';
     const isEndless = this.selectedDifficulty === 'endless';
     const isBossWave = (isEndless && (this.wave === 4 || (this.wave > 4 && (this.wave - 4) % 5 === 0))) || (!isEndless && this.wave === 4);
 
     if (isBossWave) {
+      this.currentMutator = null;
       this.spawnQueue = 0;
       this.spawnBoss();
       const bossIndex = isEndless ? Math.floor((this.wave - 4) / 5) + 1 : 1;
@@ -72,26 +115,49 @@ const assault = {
     } else {
       let count = [8, 12, 16][Math.min(2, (this.wave - 1) % 4)];
       if (isHard) count = Math.floor(count * 1.3);
-      if (isEndless) count = Math.floor(8 + (this.wave - 1) * 3.5);
+      if (isEndless) count = Math.floor(10 + (this.wave - 1) * 1.6);
 
       this.spawnQueue = count;
       this.spawnTimer = 0;
       let interval = [900, 680, 500][Math.min(2, (this.wave - 1) % 4)];
       if (isHard) interval = Math.floor(interval * 0.75);
-      if (isEndless) interval = Math.max(200, Math.floor(900 * Math.pow(0.92, this.wave - 1)));
+      if (isEndless) interval = Math.max(480, Math.floor(900 * Math.pow(0.96, this.wave - 1)));
 
       this.spawnInterval = interval;
       this.boss = null;
 
-      const subtitles = [
-        'ENEMY RECON DIVISION // DEFEND BASE',
-        'ARMORED CRUISERS DETECTED // HEAVY FIREPOWER REQUIRED',
-        'KAMIKAZE SWARM APPROACHING // WATCH DEFENSES',
-        'HEAVY ASSAULT SQUADRON // BATTLE POSITIONS',
-        'INTERCEPTOR FLEET // INTENSE FIRE FIGHT'
-      ];
-      const subIdx = (this.wave - 1) % subtitles.length;
-      showWaveAnnouncement(`WAVE ${this.wave} // INCOMING`, subtitles[subIdx], false);
+      // 25% chance for a Sector Anomaly Mutator Bonus Wave in Endless mode after Wave 9
+      if (isEndless && this.wave > 9 && Math.random() < 0.25) {
+        const mutators = [
+          { type: 'double_drops', title: '🌌 SECTOR ANOMALY DETECTED', sub: 'RESOURCE OVERFLOW // 2x DROPS & 2x SCORE (ENEMIES 2x HP)', color: '#00f2fe' },
+          { type: 'kamikaze_swarm', title: '🌌 SECTOR ANOMALY DETECTED', sub: 'KAMIKAZE HYPER-SWARM // 100% POWER-UP DROPS', color: '#ff2a6d' },
+          { type: 'solar_overload', title: '🌌 SECTOR ANOMALY DETECTED', sub: 'SOLAR OVERLOAD STORM // 3-5s STACKING SOLAR FLARES (2x DAMAGE)', color: '#ffe600' }
+        ];
+        this.currentMutator = mutators[Math.floor(Math.random() * mutators.length)];
+        if (this.currentMutator.type === 'solar_overload') {
+          const vp = this.getViewport();
+          const H = vp ? vp.vh : 540;
+          this.activeSolarFlares = this.activeSolarFlares || [];
+          this.activeSolarFlares.push({
+            state: 'warning',
+            timer: 2000,
+            lanes: [rand(HUD_HEIGHT + 50, H - 60), rand(HUD_HEIGHT + 50, H - 60)]
+          });
+          this.solarFlareSpawnTimer = randInt(3000, 5000);
+        }
+        showWaveAnnouncement(this.currentMutator.title, this.currentMutator.sub, true);
+      } else {
+        this.currentMutator = null;
+        const subtitles = [
+          'ENEMY RECON DIVISION // DEFEND BASE',
+          'ARMORED CRUISERS DETECTED // HEAVY FIREPOWER REQUIRED',
+          'KAMIKAZE SWARM APPROACHING // WATCH DEFENSES',
+          'HEAVY ASSAULT SQUADRON // BATTLE POSITIONS',
+          'INTERCEPTOR FLEET // INTENSE FIRE FIGHT'
+        ];
+        const subIdx = (this.wave - 1) % subtitles.length;
+        showWaveAnnouncement(`WAVE ${this.wave} // INCOMING`, subtitles[subIdx], false);
+      }
     }
   },
 
@@ -276,19 +342,21 @@ const assault = {
     } else if (b.phase === 2) {
       // Phase 2 Opening Swarm: 5 Kamikaze Drones with variable speeds
       const count = 5;
+      const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
       for (let i = 0; i < count; i++) {
         const yOffset = (i - (count - 1) / 2) * 32;
         this.enemies.push({
           type: 'kamikaze',
           x: b.x - 40,
           y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35),
-          r: 12, vx: -rand(220, 370) * speedScale, vy: 0, amp: 40, freq: 3, t: i * 0.3, hp: 1, maxHp: 1
+          r: 12, vx: -rand(220, 370) * speedScale, vy: 0, amp: 40, freq: 3, t: i * 0.3, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus
         });
       }
     } else if (b.phase === 3) {
       // Phase 3 Hyper Opening Barrage: 6 Homing Missiles AND 8 Kamikaze Drones!
       const countM = 6;
       const countD = 8;
+      const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
       for (let i = 0; i < countM; i++) {
         const tY = HUD_HEIGHT + 40 + (i / (countM - 1)) * (H - HUD_HEIGHT - 80);
         const yOffset = (i - (countM - 1) / 2) * 20;
@@ -304,7 +372,7 @@ const assault = {
           type: 'kamikaze',
           x: b.x - 40,
           y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35),
-          r: 12, vx: -rand(240, 400) * speedScale, vy: 0, amp: 55, freq: 3.5, t: i * 0.2, hp: 1, maxHp: 1
+          r: 12, vx: -rand(240, 400) * speedScale, vy: 0, amp: 55, freq: 3.5, t: i * 0.2, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus
         });
       }
     }
@@ -325,7 +393,7 @@ const assault = {
     this.lastShotTime = now;
 
     const boltSpeed = 850 * speedScale;
-    const boltDamage = 1;
+    const boltDamage = (this.currentMutator && this.currentMutator.type === 'solar_overload') ? 2 : 1;
 
     if (this.multishotLevel === 1) {
       // Single Shot
@@ -372,6 +440,24 @@ const assault = {
         this.healthFlashTimer = 1000;
         this.burstParticles(this.turret.x, this.turret.y, '#4dff88');
       }
+    } else if (type === 'pulse_turrets' && this.selectedDifficulty === 'endless' && this.wave > 9) {
+      const cost = this.pulseTurretCost || 600;
+      if (this.points >= cost) {
+        this.points -= cost;
+        this.pulseTurretCost = cost + 250;
+        this.activePulseTurrets = this.activePulseTurrets || [];
+        this.activePulseTurrets.push({
+          offsetX: -15, offsetY: -70,
+          x: this.turret.x - 15, y: this.turret.y - 70,
+          timer: 12.0, shootTimer: 0
+        });
+        this.activePulseTurrets.push({
+          offsetX: -15, offsetY: 70,
+          x: this.turret.x - 15, y: this.turret.y + 70,
+          timer: 12.0, shootTimer: 0
+        });
+        this.burstParticles(this.turret.x, this.turret.y, '#00f2fe');
+      }
     }
     renderAssaultHUDNumbers();
   },
@@ -397,6 +483,7 @@ const assault = {
       this.health = 0;
       this.state = 'over';
       removeBossHUD();
+      this.checkHighestWave();
       showAssaultEnd(false);
     }
   },
@@ -406,8 +493,13 @@ const assault = {
 
     if (this.selectedDifficulty === 'endless') {
       const reductionStep = Math.floor(this.wave / 5);
-      const rateMultiplier = Math.max(0, 1 - reductionStep * 0.1);
+      const rateMultiplier = Math.max(0.65, 1 - reductionStep * 0.05);
       dropRate *= rateMultiplier;
+    }
+
+    if (this.currentMutator) {
+      if (this.currentMutator.type === 'double_drops') dropRate *= 2.0;
+      if (this.currentMutator.type === 'kamikaze_swarm') dropRate = 1.0;
     }
 
     if (Math.random() > dropRate) return;
@@ -445,47 +537,57 @@ const assault = {
     if (this.overchargeTimer > 0) this.overchargeTimer -= dt;
     if (this.healthFlashTimer > 0) this.healthFlashTimer -= dt;
 
-    // Hard Mode Cosmic Solar Flare Telegraphed Hazard
-    if (this.selectedDifficulty === 'hard') {
-      if (this.solarFlareState === 'idle') {
-        this.solarFlareTimer -= dt;
-        if (this.solarFlareTimer <= 0) {
-          this.solarFlareState = 'warning';
-          this.solarFlareTimer = 2000; // 2s warning
-          this.solarFlareLanes = [rand(HUD_HEIGHT + 50, H - 60), rand(HUD_HEIGHT + 50, H - 60)];
-          showWaveAnnouncement('☀️ SOLAR HEAT FLARE', 'EVACUATE HAZARD LANES', true);
-        }
-      } else if (this.solarFlareState === 'warning') {
-        this.solarFlareTimer -= dt;
-        if (this.solarFlareTimer <= 0) {
-          this.solarFlareState = 'firing';
-          this.solarFlareTimer = 1200; // 1.2s heat wave
-        }
-      } else if (this.solarFlareState === 'firing') {
-        this.solarFlareTimer -= dt;
-        for (const laneY of (this.solarFlareLanes || [])) {
-          if (Math.abs(this.turret.y - laneY) < 26) {
-            if (this.shields && this.shields.length > 0) {
-              this.shields.pop();
-              this.shieldCount = this.shields.length;
-            } else {
-              this.damageBase(12 * dt / 1000);
+    // Stacking Cosmic Solar Flare Telegraphed Hazards (Hard Mode & Solar Overload Storm)
+    const isSolarMutator = this.currentMutator && this.currentMutator.type === 'solar_overload';
+    if (this.selectedDifficulty === 'hard' || isSolarMutator) {
+      this.solarFlareSpawnTimer = (this.solarFlareSpawnTimer || 0) - dt;
+      if (this.solarFlareSpawnTimer <= 0) {
+        this.solarFlareSpawnTimer = isSolarMutator ? randInt(3000, 5000) : randInt(20000, 28000);
+        this.activeSolarFlares = this.activeSolarFlares || [];
+        this.activeSolarFlares.push({
+          state: 'warning',
+          timer: 2000,
+          lanes: [rand(HUD_HEIGHT + 50, H - 60), rand(HUD_HEIGHT + 50, H - 60)]
+        });
+        showWaveAnnouncement('☀️ SOLAR HEAT FLARE', 'EVACUATE HAZARD LANES', true);
+      }
+    }
+
+    // Always update any active solar flare hazards to completion even if wave or mutator changes
+    if (this.activeSolarFlares && this.activeSolarFlares.length > 0) {
+      for (const flare of this.activeSolarFlares) {
+        if (flare.state === 'warning') {
+          flare.timer -= dt;
+          if (flare.timer <= 0) {
+            flare.state = 'firing';
+            flare.timer = 1200; // 1.2s heat wave duration
+          }
+        } else if (flare.state === 'firing') {
+          flare.timer -= dt;
+          for (const laneY of (flare.lanes || [])) {
+            if (Math.abs(this.turret.y - laneY) < 26) {
+              if (this.shields && this.shields.length > 0) {
+                this.shields.pop();
+                this.shieldCount = this.shields.length;
+              } else {
+                this.damageBase(12 * dt / 1000);
+              }
+            }
+            if (Math.random() < 0.5) {
+              this.particles.push({
+                x: rand(0, W), y: laneY + rand(-18, 18),
+                vx: rand(-100, 100), vy: rand(-30, 30),
+                life: rand(200, 450), maxLife: 450,
+                color: '#ffb020'
+              });
             }
           }
-          if (Math.random() < 0.5) {
-            this.particles.push({
-              x: rand(0, W), y: laneY + rand(-18, 18),
-              vx: rand(-100, 100), vy: rand(-30, 30),
-              life: rand(200, 450), maxLife: 450,
-              color: '#ffb020'
-            });
+          if (flare.timer <= 0) {
+            flare.expired = true;
           }
         }
-        if (this.solarFlareTimer <= 0) {
-          this.solarFlareState = 'idle';
-          this.solarFlareTimer = randInt(20000, 28000);
-        }
       }
+      this.activeSolarFlares = this.activeSolarFlares.filter(f => !f.expired);
     }
 
     if (this.shields && this.shields.length > 0) {
@@ -536,66 +638,76 @@ const assault = {
 
     // Standard Enemy Spawner
     if (this.spawnQueue > 0 && !this.boss) {
-      this.spawnTimer += dt;
-      if (this.spawnTimer > this.spawnInterval) {
-        this.spawnTimer = 0; this.spawnQueue--;
+      const isEndless = this.selectedDifficulty === 'endless';
+      const baseCap = 8 + Math.floor(Math.min(this.wave, 9) / 3);
+      const maxConcurrent = isEndless ? (this.wave > 9 ? baseCap + (this.wave - 9) : baseCap) : 16;
+      if (this.enemies.length < maxConcurrent) {
+        this.spawnTimer += dt;
+        if (this.spawnTimer > this.spawnInterval) {
+          this.spawnTimer = 0; this.spawnQueue--;
 
-        let type = 'raider';
-        if (this.wave === 1) {
-          type = Math.random() < 0.3 ? 'kamikaze' : 'raider';
-        } else if (this.wave === 2) {
-          type = Math.random() < 0.25 ? 'cruiser' : (Math.random() < 0.35 ? 'kamikaze' : 'raider');
-        } else {
-          const roll = Math.random();
-          const dreadProb = Math.min(0.35, 0.22 + Math.floor(this.wave / 5) * 0.03);
-          const cruiserProb = dreadProb + Math.min(0.30, 0.23 + Math.floor(this.wave / 5) * 0.02);
-          const kamiProb = cruiserProb + 0.25;
+          let type = 'raider';
+          if (this.currentMutator && this.currentMutator.type === 'kamikaze_swarm') {
+            type = 'kamikaze';
+          } else if (this.wave === 1) {
+            type = Math.random() < 0.3 ? 'kamikaze' : 'raider';
+          } else if (this.wave === 2) {
+            type = Math.random() < 0.25 ? 'cruiser' : (Math.random() < 0.35 ? 'kamikaze' : 'raider');
+          } else {
+            const roll = Math.random();
+            const dreadProb = isEndless ? Math.min(0.18, 0.10 + Math.floor(this.wave / 6) * 0.02) : Math.min(0.35, 0.22 + Math.floor(this.wave / 5) * 0.03);
+            const cruiserProb = dreadProb + (isEndless ? Math.min(0.22, 0.15 + Math.floor(this.wave / 6) * 0.02) : Math.min(0.30, 0.23 + Math.floor(this.wave / 5) * 0.02));
+            const kamiProb = cruiserProb + 0.30;
 
-          if (roll < dreadProb) type = 'beam_dreadnought';
-          else if (roll < cruiserProb) type = 'cruiser';
-          else if (roll < kamiProb) type = 'kamikaze';
-          else type = 'raider';
+            if (roll < dreadProb) type = 'beam_dreadnought';
+            else if (roll < cruiserProb) type = 'cruiser';
+            else if (roll < kamiProb) type = 'kamikaze';
+            else type = 'raider';
+          }
+
+          const endlessHpBonus = isEndless ? Math.floor(this.wave / 10) : 0;
+          let speed = (65 + Math.min(160, this.wave * 10)) * speedScale;
+          let hpVal = 1 + endlessHpBonus;
+          let radius = 18;
+
+          if (type === 'kamikaze') {
+            speed = (rand(200, 320) + Math.min(60, this.wave * 4)) * speedScale;
+            radius = 12;
+            hpVal = 1 + endlessHpBonus;
+          } else if (type === 'cruiser') {
+            speed = 45 * speedScale;
+            hpVal = 4 + endlessHpBonus;
+            radius = 26;
+          } else if (type === 'beam_dreadnought') {
+            speed = 40 * speedScale;
+            hpVal = 5 + endlessHpBonus;
+            radius = 32;
+          }
+
+          if (this.currentMutator && this.currentMutator.type === 'double_drops') {
+            hpVal *= 2;
+          }
+
+          this.enemies.push({
+            type,
+            x: W + 35,
+            y: rand(HUD_HEIGHT + 60, H - 60),
+            r: radius,
+            vx: -speed,
+            vy: 0,
+            amp: type === 'raider' && this.wave >= 2 ? rand(25, 60) : (type === 'kamikaze' ? rand(50, 100) : 0),
+            freq: rand(1.5, 3.5),
+            t: rand(0, 10),
+            hp: hpVal,
+            maxHp: hpVal,
+            missileTimer: type === 'cruiser' ? rand(1800, 2600) : 0,
+            state: 'moving',
+            chargeTimer: 0,
+            maxChargeTime: Math.max(3200, 5000 - (this.wave - 3) * 150),
+            fireTimer: 0,
+            maxFireTime: 1500
+          });
         }
-
-        const isEndless = this.selectedDifficulty === 'endless';
-        const endlessHpBonus = isEndless ? Math.floor(this.wave / 10) : 0;
-        let speed = (65 + Math.min(160, this.wave * 10)) * speedScale;
-        let hpVal = 1 + endlessHpBonus;
-        let radius = 18;
-
-        if (type === 'kamikaze') {
-          speed = (rand(210, 360) + Math.min(120, this.wave * 8)) * speedScale;
-          radius = 12;
-          hpVal = 1 + endlessHpBonus;
-        } else if (type === 'cruiser') {
-          speed = 45 * speedScale;
-          hpVal = 4 + endlessHpBonus;
-          radius = 26;
-        } else if (type === 'beam_dreadnought') {
-          speed = 40 * speedScale;
-          hpVal = 5 + endlessHpBonus;
-          radius = 32;
-        }
-
-        this.enemies.push({
-          type,
-          x: W + 35,
-          y: rand(HUD_HEIGHT + 60, H - 60),
-          r: radius,
-          vx: -speed,
-          vy: 0,
-          amp: type === 'raider' && this.wave >= 2 ? rand(25, 60) : (type === 'kamikaze' ? rand(50, 100) : 0),
-          freq: rand(1.5, 3.5),
-          t: rand(0, 10),
-          hp: hpVal,
-          maxHp: hpVal,
-          missileTimer: type === 'cruiser' ? rand(1800, 2600) : 0,
-          state: 'moving',
-          chargeTimer: 0,
-          maxChargeTime: Math.max(2000, 5000 - (this.wave - 3) * 175),
-          fireTimer: 0,
-          maxFireTime: 1500
-        });
       }
     }
 
@@ -742,7 +854,7 @@ const assault = {
       for (const e of this.enemies) {
         if (!b.dead && !e.dead && dist2(b.x, b.y, e.x, e.y) < (e.r + 6) ** 2) {
           const isFrontalHit = b.x < e.x && Math.abs(b.y - e.y) < e.r * 0.7;
-          if (e.type === 'cruiser' && isFrontalHit && !b.pierce) {
+          if (e.type === 'cruiser' && isFrontalHit && !b.pierce && !b.pierceShields) {
             for (let i = 0; i < 4; i++) this.particles.push(spark(b.x, b.y, 'var(--hazard)'));
             b.dead = true;
             continue;
@@ -771,6 +883,9 @@ const assault = {
                 ptsEarned = Math.floor(ptsEarned * 0.85);
               }
             }
+            if (this.currentMutator && this.currentMutator.type === 'double_drops') {
+              ptsEarned *= 2;
+            }
             this.points += ptsEarned;
             this.spawnPowerupDrop(e.x, e.y, e.type);
           }
@@ -798,6 +913,7 @@ const assault = {
               showWaveAnnouncement('BOSS DESTROYED!', `WAVE ${this.wave} CLEARED`, true);
               this.enemies = this.enemies.filter(e => !e.isBossDrone && !e.isBossGuard && !e.isEscort);
               this.wave++;
+              this.checkHighestWave();
               this.beginWave();
               renderHUD();
             } else {
@@ -840,7 +956,7 @@ const assault = {
       if (dist2(d.x, d.y, this.turret.x, this.turret.y) < (this.turret.r + d.r + 4) ** 2) {
         d.collected = true;
         if (d.type === 'nanite') {
-          this.health = Math.min(100, this.health + 25);
+          this.health = Math.min(this.maxHealth || 100, this.health + 25);
           this.healthFlashTimer = 1000;
           this.burstParticles(this.turret.x, this.turret.y, '#4dff88');
         } else if (d.type === 'overcharge') {
@@ -860,8 +976,49 @@ const assault = {
     const isWaveComplete = this.spawnQueue <= 0 && this.enemies.length === 0 && !this.boss && this.state === 'playing';
     if (isWaveComplete && (this.selectedDifficulty === 'endless' || this.wave < 4)) {
       this.wave++;
+      this.checkHighestWave();
       this.beginWave();
       renderHUD();
+    }
+
+    // Update Active Deployable Pulse Turrets
+    if (this.activePulseTurrets && this.activePulseTurrets.length > 0) {
+      const dtSec = dt / 1000;
+      this.activePulseTurrets.forEach(pt => {
+        pt.timer -= dtSec;
+        const targetX = this.turret.x + pt.offsetX;
+        const targetY = this.turret.y + pt.offsetY;
+        pt.x += (targetX - pt.x) * 8 * dtSec;
+        pt.y += (targetY - pt.y) * 8 * dtSec;
+
+        pt.shootTimer += dtSec;
+        if (pt.shootTimer >= 0.35) {
+          pt.shootTimer = 0;
+          const beamSpeed = 1600 * speedScale;
+          this.bolts.push({
+            x: pt.x + 20,
+            y: pt.y,
+            vx: beamSpeed,
+            vy: 0,
+            dmg: Math.max(3, 1 + Math.floor(this.wave / 10)),
+            pierce: false,
+            pierceShields: true,
+            isPulseBeam: true
+          });
+          for (let i = 0; i < 6; i++) {
+            this.particles.push(spark(pt.x + 20, pt.y, '#00f2fe'));
+          }
+        }
+      });
+      this.activePulseTurrets = this.activePulseTurrets.filter(pt => {
+        if (pt.timer <= 0) {
+          for (let i = 0; i < 14; i++) {
+            this.particles.push(spark(pt.x, pt.y, '#00f2fe'));
+          }
+          return false;
+        }
+        return true;
+      });
     }
 
     updateParticles(this.particles, dt);
@@ -1026,10 +1183,11 @@ const assault = {
         if (b.shootTimer > 2400) {
           b.shootTimer = 0;
           const count = randInt(5, 9);
+          const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
           for (let i = 0; i < count; i++) {
             const yOffset = (i - (count - 1) / 2) * 24;
             this.enemies.push({
-              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(250, 400), vy: 0, amp: 48, freq: 3.4, t: i * 0.12, hp: 1, maxHp: 1, isBossDrone: true
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(250, 400), vy: 0, amp: 48, freq: 3.4, t: i * 0.12, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus, isBossDrone: true
             });
           }
           // Delay 0.9s (900ms) gap before spawning 1-3 homing missiles
@@ -1071,10 +1229,11 @@ const assault = {
         if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1200) {
           b.shootTimer = 0;
           const dCount = randInt(5, 8);
+          const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
           for (let i = 0; i < dCount; i++) {
             const yOffset = (i - (dCount - 1) / 2) * 22;
             this.enemies.push({
-              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(250, 400), vy: 0, amp: 48, freq: 3.4, t: i * 0.12, hp: 1, maxHp: 1, isBossDrone: true
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(250, 400), vy: 0, amp: 48, freq: 3.4, t: i * 0.12, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus, isBossDrone: true
             });
           }
           this.launchMissileSalvo(b, randInt(4, 7), true);
@@ -1099,7 +1258,7 @@ const assault = {
           }
         }
 
-        b.targetY = H / 2 + Math.sin(b.timer * 3.4) * (H * 0.38);
+        b.targetY = H / 2 + Math.sin(b.timer * 3.2) * (H * 0.38);
         b.y += (b.targetY - b.y) * 4.2 * dt / 1000;
 
         if (Math.random() < 0.45) {
@@ -1111,10 +1270,11 @@ const assault = {
           b.shootTimer = 0;
           const mCount = randInt(5, 8);
           const dCount = randInt(6, 9);
+          const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
           for (let i = 0; i < dCount; i++) {
             const yOffset = (i - (dCount - 1) / 2) * 22;
             this.enemies.push({
-              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(260, 430), vy: 0, amp: 50, freq: 3.6, t: i * 0.1, hp: 1, maxHp: 1
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(260, 430), vy: 0, amp: 50, freq: 3.6, t: i * 0.1, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus
             });
           }
           this.launchMissileSalvo(b, mCount, true);
@@ -1162,10 +1322,11 @@ const assault = {
       if (b.shootTimer > 1600) {
         b.shootTimer = 0;
         const count = randInt(4, 7);
+        const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
         for (let i = 0; i < count; i++) {
           const yOffset = (i - (count - 1) / 2) * 26;
           this.enemies.push({
-            type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(220, 370), vy: 0, amp: 40, freq: 3, t: i * 0.15, hp: 1, maxHp: 1
+            type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(220, 370), vy: 0, amp: 40, freq: 3, t: i * 0.15, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus
           });
         }
       }
@@ -1182,7 +1343,7 @@ const assault = {
       b.shootTimer += dt;
       if ((!b.salvoCooldown || b.salvoCooldown <= 0) && (!b.missileQueue || b.missileQueue.length === 0) && b.shootTimer > 1300) {
         b.shootTimer = 0;
-
+        const endlessHpBonus = (this.selectedDifficulty === 'endless') ? Math.floor(this.wave / 10) : 0;
         const attackRoll = Math.random();
 
         if (attackRoll < 0.30) {
@@ -1194,7 +1355,7 @@ const assault = {
           for (let i = 0; i < dCount; i++) {
             const yOffset = (i - (dCount - 1) / 2) * 22;
             this.enemies.push({
-              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1, maxHp: 1
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus
             });
           }
           b.salvoCooldown = 1800;
@@ -1204,7 +1365,7 @@ const assault = {
           for (let i = 0; i < dCount; i++) {
             const yOffset = (i - (dCount - 1) / 2) * 22;
             this.enemies.push({
-              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1, maxHp: 1
+              type: 'kamikaze', x: b.x - 40, y: clamp(b.y + yOffset, HUD_HEIGHT + 35, H - 35), r: 12, vx: -rand(240, 400), vy: 0, amp: 50, freq: 3.5, t: i * 0.12, hp: 1 + endlessHpBonus, maxHp: 1 + endlessHpBonus
             });
           }
           const isStaggered = Math.random() < 0.4;
@@ -1230,30 +1391,34 @@ const assault = {
     // Fortified Base Structure
     drawBaseStructure(ctx, W, H, baseX, this.turret.r, this.health, this.healthFlashTimer);
 
-    // Telegraphed Solar Flare Warning Lanes & Firing Waves
-    if (this.solarFlareState === 'warning' && this.solarFlareLanes) {
+    // Telegraphed Solar Flare Warning Lanes & Firing Waves (Supports Stacking)
+    if (this.activeSolarFlares && this.activeSolarFlares.length > 0) {
       const warnPulse = 0.2 + Math.abs(Math.sin(performance.now() * 0.012)) * 0.45;
-      for (const laneY of this.solarFlareLanes) {
-        ctx.save();
-        ctx.fillStyle = `rgba(255, 176, 32, ${warnPulse})`;
-        ctx.fillRect(0, laneY - 24, W, 48);
-        ctx.strokeStyle = '#ffb020';
-        ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 10;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([8, 8]);
-        ctx.beginPath();
-        ctx.moveTo(0, laneY - 24); ctx.lineTo(W, laneY - 24);
-        ctx.moveTo(0, laneY + 24); ctx.lineTo(W, laneY + 24);
-        ctx.stroke();
-        ctx.restore();
-      }
-    } else if (this.solarFlareState === 'firing' && this.solarFlareLanes) {
-      for (const laneY of this.solarFlareLanes) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 60, 0, 0.45)';
-        ctx.shadowColor = '#ff3d00'; ctx.shadowBlur = 25;
-        ctx.fillRect(0, laneY - 24, W, 48);
-        ctx.restore();
+      for (const flare of this.activeSolarFlares) {
+        if (flare.state === 'warning' && flare.lanes) {
+          for (const laneY of flare.lanes) {
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 176, 32, ${warnPulse})`;
+            ctx.fillRect(0, laneY - 24, W, 48);
+            ctx.strokeStyle = '#ffb020';
+            ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 10;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(0, laneY - 24); ctx.lineTo(W, laneY - 24);
+            ctx.moveTo(0, laneY + 24); ctx.lineTo(W, laneY + 24);
+            ctx.stroke();
+            ctx.restore();
+          }
+        } else if (flare.state === 'firing' && flare.lanes) {
+          for (const laneY of flare.lanes) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 60, 0, 0.45)';
+            ctx.shadowColor = '#ff3d00'; ctx.shadowBlur = 25;
+            ctx.fillRect(0, laneY - 24, W, 48);
+            ctx.restore();
+          }
+        }
       }
     }
 
@@ -1302,14 +1467,29 @@ const assault = {
 
     drawTurret(ctx, this.turret.x, this.turret.y, this.turret.r);
 
-    // Player Bolts
+    // Player Bolts & Pulse Beams
     for (const b of this.bolts) {
       ctx.save();
-      const color = b.pierce ? getComputedColor('--hazard') : getComputedColor('--energy');
-      ctx.fillStyle = color;
-      ctx.shadowColor = color; ctx.shadowBlur = 12;
-      ctx.fillRect(b.x - 12, b.y - (b.pierce ? 3 : 2), b.pierce ? 22 : 16, b.pierce ? 6 : 4);
+      if (b.isPulseBeam) {
+        ctx.fillStyle = '#00f2fe';
+        ctx.shadowColor = '#00f2fe'; ctx.shadowBlur = 18;
+        ctx.fillRect(b.x - 24, b.y - 5, 36, 10);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(b.x - 20, b.y - 2, 28, 4);
+      } else {
+        const color = b.pierce ? getComputedColor('--hazard') : getComputedColor('--energy');
+        ctx.fillStyle = color;
+        ctx.shadowColor = color; ctx.shadowBlur = 12;
+        ctx.fillRect(b.x - 12, b.y - (b.pierce ? 3 : 2), b.pierce ? 22 : 16, b.pierce ? 6 : 4);
+      }
       ctx.restore();
+    }
+
+    // Deployable Dual Pulse Turrets
+    if (this.activePulseTurrets) {
+      for (const pt of this.activePulseTurrets) {
+        drawPulseTurret(ctx, pt);
+      }
     }
 
     // Homing Missiles
@@ -1431,7 +1611,20 @@ function renderUpgradesHTML(force) {
   const mAffordable = assault.multishotLevel < 3 && assault.points >= mCost;
   const fAffordable = assault.fortifyLevel < 3 && assault.points >= fCost;
 
-  const currentState = `${assault.points}_${assault.fireRateLevel}_${assault.multishotLevel}_${assault.fortifyLevel}_${rAffordable}_${mAffordable}_${fAffordable}`;
+  const isEndlessWave9 = assault.selectedDifficulty === 'endless' && assault.wave > 9;
+  const ptCost = assault.pulseTurretCost || 600;
+  const ptAffordable = assault.points >= ptCost;
+
+  let pulseTurretHTML = '';
+  if (isEndlessWave9) {
+    pulseTurretHTML = `
+      <button type="button" class="upgrade-chip pulse-turret-chip ${ptAffordable ? 'affordable' : ''}" data-upgrade="pulse_turrets" title="Deploy Dual Pulse Turrets (${ptCost} pts)">
+        <span class="hotkey-badge">[4]</span><span class="upg-icon">🤖</span> <span class="upg-name">Pulse Turrets</span> <span class="upg-cost">(${ptCost})</span>
+      </button>
+    `;
+  }
+
+  const currentState = `${assault.points}_${assault.fireRateLevel}_${assault.multishotLevel}_${assault.fortifyLevel}_${ptCost}_${rAffordable}_${mAffordable}_${fAffordable}_${ptAffordable}_${isEndlessWave9}`;
   if (!force && currentState === lastUpgradesState) return;
   lastUpgradesState = currentState;
 
@@ -1445,6 +1638,7 @@ function renderUpgradesHTML(force) {
     <button type="button" class="upgrade-chip ${fAffordable ? 'affordable' : (assault.fortifyLevel === 3 ? 'maxed' : '')}" data-upgrade="fortify" title="Fortify Level ${assault.fortifyLevel} (${fCost})">
       <span class="hotkey-badge">[3]</span><span class="upg-icon">🛡️</span> <span class="upg-name">Fortify</span> <span class="upg-lvl"><span class="upg-lvl-word">Lvl </span>${assault.fortifyLevel}</span> <span class="upg-cost">(${fCost})</span>
     </button>
+    ${pulseTurretHTML}
   `;
 
   bar.querySelectorAll('.upgrade-chip').forEach(btn => {
@@ -1510,6 +1704,9 @@ function renderAssaultHUDNumbers() {
 
 function showAssaultEnd(win) {
   removeWaveAnnouncement();
+  if (typeof assault !== 'undefined' && typeof assault.checkHighestWave === 'function') {
+    assault.checkHighestWave();
+  }
   let unlockHTML = '';
   if (win && typeof setAssaultUnlock === 'function') {
     if (assault.selectedDifficulty === 'normal') {
@@ -1521,15 +1718,27 @@ function showAssaultEnd(win) {
     }
   }
 
-  panel.innerHTML = `
-    <h1 class="title ${win ? 'victory-title' : 'loss-title'}">${win ? 'VICTORY SECURED' : 'BASE LOST'}</h1>
-    ${unlockHTML}
-    <div id="gate">${gateSVG('assault')}</div>
+  const isEndless = assault.selectedDifficulty === 'endless';
+  const statRowHTML = isEndless ? `
+    <div class="stat-row">
+      <div class="stat"><span class="num">${assault.wave}</span><span class="lbl">Wave</span></div>
+      <div class="stat"><span class="num">${assault.highestEndlessWave || 0}</span><span class="lbl">Best Wave</span></div>
+      <div class="stat"><span class="num">${assault.kills}</span><span class="lbl">Kills</span></div>
+      <div class="stat"><span class="num">${assault.points}</span><span class="lbl">Score</span></div>
+    </div>
+  ` : `
     <div class="stat-row">
       <div class="stat"><span class="num">${assault.wave}</span><span class="lbl">Waves</span></div>
       <div class="stat"><span class="num">${assault.kills}</span><span class="lbl">Kills</span></div>
       <div class="stat"><span class="num">${assault.points}</span><span class="lbl">Score</span></div>
     </div>
+  `;
+
+  panel.innerHTML = `
+    <h1 class="title ${win ? 'victory-title' : 'loss-title'}">${win ? 'VICTORY SECURED' : 'BASE LOST'}</h1>
+    ${unlockHTML}
+    <div id="gate">${gateSVG('assault')}</div>
+    ${statRowHTML}
     <p class="desc">${win ? 'The Leviathan Flagship has been shattered! The sector is saved.' : 'The base fell before the enemy invasion was repelled.'}</p>
     <button id="btn-retry2">${win ? 'Play Again' : 'Retry Defense'}</button>
   `;
@@ -1550,7 +1759,8 @@ function showAssaultEnd(win) {
 function drawBaseStructure(ctx, W, H, baseX, turretR, health, healthFlashTimer) {
   const wallX = baseX + turretR + 6;
   const wallW = 16;
-  const healthPct = Math.max(0, Math.min(100, health)) / 100;
+  const maxHP = (assault && assault.maxHealth) || 100;
+  const healthPct = Math.max(0, Math.min(1, health / maxHP));
   const now = performance.now();
 
   // Dynamic Base Health & Flash Color Indicator
@@ -2093,6 +2303,50 @@ function drawTurret(ctx, x, y, r) {
   ctx.restore();
 }
 
+function drawPulseTurret(ctx, pt) {
+  ctx.save();
+  ctx.translate(pt.x, pt.y);
+  const now = performance.now();
+  const rot = (now / 350) % (Math.PI * 2);
+
+  // Outer Rotating Cybernetic Ring
+  ctx.save();
+  ctx.rotate(rot);
+  ctx.strokeStyle = '#00f2fe';
+  ctx.shadowColor = '#00f2fe'; ctx.shadowBlur = 14;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 13, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Orbital Nodes
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 3; i++) {
+    const a = (i * Math.PI * 2) / 3;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * 13, Math.sin(a) * 13, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Core Body Housing
+  ctx.fillStyle = '#0f172a';
+  ctx.strokeStyle = '#7c5cff';
+  ctx.shadowColor = '#7c5cff'; ctx.shadowBlur = 10;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Forward Beam Emitter Nose
+  ctx.fillStyle = '#00f2fe';
+  ctx.shadowColor = '#00f2fe'; ctx.shadowBlur = 12;
+  ctx.fillRect(4, -3, 7, 6);
+
+  ctx.restore();
+}
+
 function drawEnemy(ctx, e) {
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -2422,9 +2676,11 @@ function drawBoss(ctx, b) {
 }
 
 /* ==========================================================================
-   DEBUG MODE CONTROLS (Comment out this entire block for production release)
+   DEBUG MODE CONTROLS (Assault Mode)
    ========================================================================== */
-
+if (typeof initAssaultDebugControls === 'function') {
+  initAssaultDebugControls();
+}
 /* ==========================================================================
    END DEBUG MODE CONTROLS
    ========================================================================== */
