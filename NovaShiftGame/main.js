@@ -226,12 +226,26 @@ let mode = getMode();
    Input state (shared)
 --------------------------------------------------------- */
 const input = { x:null, y:null, down:false, keys:{}, mouseActive:true };
+
+function resetInputState() {
+  input.down = false;
+  input.keys = {};
+  if (typeof escapeGame !== 'undefined' && escapeGame && escapeGame.player) {
+    escapeGame.player.vx = 0;
+    escapeGame.player.vy = 0;
+  }
+  if (typeof assault !== 'undefined' && assault && assault.turret) {
+    assault.turret.vx = 0;
+    assault.turret.vy = 0;
+  }
+}
+
 function pointerPos(e){
   const t = (e.touches && e.touches[0]) ? e.touches[0] : e;
   return { x: t.clientX, y: t.clientY };
 }
 function updateInputPos(e){
-  if (e && e.target && e.target.closest && e.target.closest('#hud')) return;
+  if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('#pause-modal') || e.target.closest('#game-settings-modal') || e.target.closest('.game-settings-modal') || e.target.closest('.top-actions'))) return;
   const p = pointerPos(e);
   if (mode === 'assault' && typeof assault !== 'undefined' && typeof assault.getViewport === 'function') {
     const vp = assault.getViewport();
@@ -248,28 +262,56 @@ function updateInputPos(e){
   input.mouseActive = true; // Re-enable mouse tracking on pointer/touch movement
 }
 window.addEventListener('pointerdown', e=>{
+  if (isGamePaused) return;
+  if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('#pause-modal') || e.target.closest('#game-settings-modal') || e.target.closest('.game-settings-modal') || e.target.closest('.top-actions'))) return;
   input.down = true;
   updateInputPos(e);
   onPress(e);
 }, {passive:true});
 window.addEventListener('pointermove', e=>{
+  if (isGamePaused) return;
   updateInputPos(e);
 }, {passive:true});
 window.addEventListener('pointerup', ()=>{ input.down=false; }, {passive:true});
 window.addEventListener('pointercancel', ()=>{ input.down=false; }, {passive:true});
+window.addEventListener('mouseup', ()=>{ input.down=false; }, {passive:true});
 
 window.addEventListener('touchstart', e=>{
+  if (isGamePaused) return;
+  if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('#pause-modal') || e.target.closest('#game-settings-modal') || e.target.closest('.game-settings-modal') || e.target.closest('.top-actions'))) return;
   input.down = true;
   updateInputPos(e);
   onPress(e);
 }, {passive:true});
 window.addEventListener('touchmove', e=>{
+  if (isGamePaused) return;
   updateInputPos(e);
 }, {passive:true});
 window.addEventListener('touchend', ()=>{ input.down=false; }, {passive:true});
+window.addEventListener('touchcancel', ()=>{ input.down=false; }, {passive:true});
+
+window.addEventListener('blur', resetInputState);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetInputState();
+});
 
 window.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
+
+  if((k === 'm' || e.code === 'KeyM') && !e.repeat){
+    if(typeof Sound !== 'undefined') {
+      Sound.toggleMute();
+      if(typeof updatePauseSoundUI === 'function') updatePauseSoundUI();
+    }
+  }
+
+  if((k === 'p' || e.code === 'KeyP' || k === 'escape' || e.code === 'Escape') && !e.repeat){
+    toggleGamePause();
+    return;
+  }
+
+  if (isGamePaused) return;
+
   input.keys[k] = true;
   if(k==='arrowleft'||k==='arrowright'||k==='arrowup'||k==='arrowdown'||k==='a'||k==='d'||k==='w'||k==='s'){
     input.mouseActive = false; // Disable mouse tracking when keyboard keys are pressed
@@ -289,12 +331,15 @@ window.addEventListener('keydown', e=>{
   }
 }, {passive:true});
 window.addEventListener('keyup', e=>{
-  input.keys[e.key.toLowerCase()] = false;
+  const k = e.key.toLowerCase();
+  input.keys[k] = false;
+  delete input.keys[k];
 }, {passive:true});
 
 let lastPressTime = 0;
 function onPress(e){
-  if (e && e.target && e.target.closest && e.target.closest('#hud')) return;
+  if (isGamePaused) return;
+  if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('.top-actions'))) return;
   if(overlay && !overlay.classList.contains('hidden')) return;
   const now = performance.now();
   if(now - lastPressTime < 80) return;
@@ -344,8 +389,10 @@ function renderHUD(){
     if(hudCenter) hudCenter.innerHTML = '';
     const diffLabel = assault.selectedDifficulty === 'hard' ? ' (HARD)' : (assault.selectedDifficulty === 'endless' ? ' (ENDLESS)' : '');
     hudLeft.innerHTML = `
-      <div class="hud-chip" id="hud-wave-chip" style="position:relative;"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}</span></div>
-      <div class="hud-chip"><span class="hud-label">Points</span><span class="hud-value" id="hv-points">${assault.points||0}</span></div>
+      <div class="hud-stats-stack" id="hud-stats-stack">
+        <div class="hud-chip" id="hud-wave-chip" style="position:relative;"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}</span></div>
+        <div class="hud-chip" id="hud-points-chip"><span class="hud-label">Points</span><span class="hud-value" id="hv-points">${assault.points||0}</span></div>
+      </div>
       <div class="hud-chip"><span class="hud-label">Base</span><div id="healthbar-wrap"><div id="healthbar" style="width:${clamp((assault.health / (assault.maxHealth || 100)) * 100, 0, 100)}%"></div></div></div>
       <div class="upgrade-bar" id="upgrade-bar"></div>
     `;
@@ -413,6 +460,21 @@ function toggleFullscreen() {
 }
 
 function showStart(){
+  if (isGamePaused) resumeGame();
+  if (typeof Sound !== 'undefined') Sound.fadeOutBGM(400);
+
+  if (typeof escapeGame !== 'undefined' && typeof escapeGame.stop === 'function') {
+    escapeGame.stop();
+  }
+  if (typeof assault !== 'undefined' && typeof assault.stop === 'function') {
+    assault.stop();
+  }
+  if (typeof removeBossHUD === 'function') removeBossHUD();
+  if (typeof removeWaveAnnouncement === 'function') removeWaveAnnouncement();
+  if (typeof updateDangerVignette === 'function') updateDangerVignette(false);
+  resetInputState();
+  renderHUD();
+
   const m = mode;
   const unlocks = getAssaultUnlocks();
   const currentDiff = (typeof assault !== 'undefined' && assault.selectedDifficulty) || 'normal';
@@ -469,28 +531,30 @@ function showStart(){
     <div class="rotate-hint">⟳ Rotate your device to switch objectives entirely</div>
     <div class="start-btn-row">
       <button id="btn-start" style="flex:1;">${m==='escape' ? ((typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) ? '⚡ Launch Overclocked' : 'Start Run') : 'Launch Defense'}</button>
-      ${m === 'escape' ? `<button type="button" id="btn-escape-settings" class="btn-settings-cog" title="Escape Mode Settings">⚙️</button>` : ''}
+      <button type="button" id="btn-main-settings" class="btn-settings-cog" title="Audio & Game Settings">⚙️</button>
     </div>
   `;
+
+  const btnSettings = panel.querySelector('#btn-main-settings') || panel.querySelector('#btn-escape-settings');
+  if (btnSettings) {
+    btnSettings.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof openSettingsModal === 'function') {
+        openSettingsModal();
+      }
+    });
+  }
 
   if (m === 'escape') {
     const btnNorm = panel.querySelector('#btn-mode-normal');
     const btnOver = panel.querySelector('#btn-mode-overclocked');
-    const btnSettings = panel.querySelector('#btn-escape-settings');
-    const isUnlocked = (typeof escapeGame !== 'undefined' && escapeGame.unlockedOverclocked) || loadSecure('novashift_escape_unlocked_overclocked', false);
-
-    if (btnSettings) {
-      btnSettings.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (typeof escapeGame !== 'undefined' && typeof escapeGame.openSettingsModal === 'function') {
-          escapeGame.openSettingsModal();
-        }
-      });
-    }
 
     if (btnNorm) {
       btnNorm.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (typeof Sound !== 'undefined' && Sound && typeof Sound.play === 'function') {
+          Sound.play('uiClick');
+        }
         if (typeof escapeGame !== 'undefined') escapeGame.isOverclockedMode = false;
         showStart();
       });
@@ -499,11 +563,17 @@ function showStart(){
     if (btnOver) {
       btnOver.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!isUnlocked) {
-          if (typeof showWaveAnnouncement === 'function') {
-            showWaveAnnouncement('🔒 LOCKED', 'REACH ZONE 6 IN NORMAL MODE TO UNLOCK', false);
+        const currentlyUnlocked = (typeof escapeGame !== 'undefined' && escapeGame.unlockedOverclocked) || (typeof loadSecure === 'function' && loadSecure('novashift_escape_unlocked_overclocked', false));
+        if (!currentlyUnlocked) {
+          if (typeof Sound !== 'undefined' && Sound) {
+            if (typeof Sound.laserWarning === 'function') Sound.laserWarning();
+            else if (typeof Sound.play === 'function') Sound.play('hitHull');
           }
+          showWaveAnnouncement('🔒 LOCKED', 'REACH ZONE 6 IN NORMAL MODE TO UNLOCK', false);
           return;
+        }
+        if (typeof Sound !== 'undefined' && Sound && typeof Sound.play === 'function') {
+          Sound.play('uiClick');
         }
         if (typeof escapeGame !== 'undefined') escapeGame.isOverclockedMode = true;
         showStart();
@@ -517,13 +587,14 @@ function showStart(){
         e.stopPropagation();
         const diff = btn.getAttribute('data-diff');
         if (diff === 'hard' && !unlocks.hard) {
-          if (typeof showWaveAnnouncement === 'function') showWaveAnnouncement('🔒 LOCKED', 'BEAT NORMAL MODE TO UNLOCK HARD MODE', false);
+          showWaveAnnouncement('🔒 LOCKED', 'BEAT NORMAL MODE TO UNLOCK HARD MODE', false);
           return;
         }
         if (diff === 'endless' && !unlocks.endless) {
-          if (typeof showWaveAnnouncement === 'function') showWaveAnnouncement('🔒 LOCKED', 'BEAT HARD MODE TO UNLOCK ENDLESS ASSAULT', false);
+          showWaveAnnouncement('🔒 LOCKED', 'BEAT HARD MODE TO UNLOCK ENDLESS ASSAULT', false);
           return;
         }
+        if (typeof Sound !== 'undefined') Sound.play('uiClick');
         if (typeof assault !== 'undefined') assault.selectedDifficulty = diff;
         panel.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -538,6 +609,7 @@ function showStart(){
 
   overlay.classList.remove('hidden');
   document.getElementById('btn-start').addEventListener('click', ()=>{
+    if (typeof Sound !== 'undefined') Sound.play('uiClick');
     requestFullscreenMode();
     overlay.classList.add('hidden');
     if (m === 'escape') {
@@ -552,6 +624,38 @@ function showStart(){
   });
 }
 window.showStartScreen = showStart;
+
+/* ---------------------------------------------------------
+   Global Announcement Overlay (Used for Waves, Bosses & Unlock Warnings)
+--------------------------------------------------------- */
+function showWaveAnnouncement(title, subtitle, isBoss) {
+  removeWaveAnnouncement();
+  const el = document.createElement('div');
+  el.id = 'wave-announcement';
+  if (isBoss) el.className = 'boss-wave';
+  el.innerHTML = `
+    <div class="wave-title">${title}</div>
+    <div class="wave-subtitle">${subtitle}</div>
+  `;
+  document.body.appendChild(el);
+
+  void el.offsetWidth;
+  el.classList.add('active');
+
+  if (window.waveAnnounceTimer) clearTimeout(window.waveAnnounceTimer);
+  window.waveAnnounceTimer = setTimeout(() => {
+    removeWaveAnnouncement();
+  }, 2600);
+}
+
+function removeWaveAnnouncement() {
+  if (window.waveAnnounceTimer) clearTimeout(window.waveAnnounceTimer);
+  const existing = document.getElementById('wave-announcement');
+  if (existing) existing.remove();
+}
+
+window.showWaveAnnouncement = showWaveAnnouncement;
+window.removeWaveAnnouncement = removeWaveAnnouncement;
 
 /* ---------------------------------------------------------
    Shared particle helpers
@@ -608,29 +712,481 @@ window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ resize(); ch
    Main loop & Boot initialization
 --------------------------------------------------------- */
 let last = performance.now();
+let isGamePaused = false;
+
 function loop(now){
   const dt = Math.min(now-last, 42);
   last = now;
 
-  const driftX = mode==='escape' ? (escapeGame.player?.vx||0)*0.02 : 0;
-  const driftY = mode==='assault' ? (assault.turret?.vy||0)*0.02 : 0;
+  const driftX = (!isGamePaused && mode==='escape') ? (escapeGame.player?.vx||0)*0.02 : 0;
+  const driftY = (!isGamePaused && mode==='assault') ? (assault.turret?.vy||0)*0.02 : 0;
   drawStars(dt, driftX, driftY);
 
   ctx.clearRect(0,0,W,H);
   if(mode==='escape'){
-    escapeGame.update(dt);
+    if(!isGamePaused){
+      escapeGame.update(dt);
+    }
     escapeGame.draw();
   } else {
-    assault.update(dt);
+    if(!isGamePaused){
+      assault.update(dt);
+    }
     assault.draw();
   }
   requestAnimationFrame(loop);
 }
 
+/* ---------------------------------------------------------
+   Global Audio & Game Settings Modal
+--------------------------------------------------------- */
+function createSettingsModal() {
+  if (document.getElementById('game-settings-modal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'game-settings-modal';
+  modal.className = 'game-settings-modal';
+  modal.innerHTML = `
+    <div class="settings-panel">
+      <div class="settings-header">
+        <span class="settings-title">⚙️ Audio & Game Settings</span>
+        <button id="btn-close-settings" class="settings-close-btn" type="button" title="Close Settings">✕</button>
+      </div>
+
+      <!-- AUDIO CONTROLS -->
+      <div class="settings-group">
+        <div class="settings-row">
+          <div class="settings-label-wrap">
+            <span class="settings-label">Sound Master</span>
+            <span class="settings-sublabel">Master audio toggle</span>
+          </div>
+          <div class="toggle-btn-group">
+            <button type="button" class="toggle-opt-btn" id="btn-sound-on">🔊 ON</button>
+            <button type="button" class="toggle-opt-btn" id="btn-sound-off">🔇 MUTE</button>
+          </div>
+        </div>
+
+        <div class="settings-slider-row">
+          <div class="settings-row">
+            <div class="settings-label-wrap">
+              <span class="settings-label">Music Volume</span>
+              <span class="settings-sublabel">Soundtrack & BGM tracks</span>
+            </div>
+            <span class="slider-val-badge" id="val-music-vol">60%</span>
+          </div>
+          <div class="settings-slider-wrap">
+            <input type="range" min="0" max="100" value="60" class="settings-slider" id="slider-music-vol">
+          </div>
+        </div>
+
+        <div class="settings-slider-row">
+          <div class="settings-row">
+            <div class="settings-label-wrap">
+              <span class="settings-label">SFX Volume</span>
+              <span class="settings-sublabel">Lasers, explosions & alerts</span>
+            </div>
+            <span class="slider-val-badge" id="val-sfx-vol">100%</span>
+          </div>
+          <div class="settings-slider-wrap">
+            <input type="range" min="0" max="100" value="100" class="settings-slider" id="slider-sfx-vol">
+          </div>
+        </div>
+      </div>
+
+      <!-- FLIGHT & CONTROLS -->
+      <div class="settings-group">
+        <div class="settings-row">
+          <div class="settings-label-wrap">
+            <span class="settings-label">Flight Mouse Cursor</span>
+            <span class="settings-sublabel">Show crosshair pointer in Escape Mode</span>
+          </div>
+          <div class="toggle-btn-group">
+            <button type="button" class="toggle-opt-btn" id="btn-mouse-yes">YES</button>
+            <button type="button" class="toggle-opt-btn" id="btn-mouse-no">NO</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECORDS & DATA -->
+      <div class="settings-group">
+        <div class="settings-row">
+          <div class="settings-label-wrap">
+            <span class="settings-label">Reset Best Scores</span>
+            <span class="settings-sublabel">Clear saved high score records</span>
+          </div>
+        </div>
+        <div class="reset-btn-row">
+          <button type="button" class="btn-reset-score" id="btn-reset-escape-std">Escape Std</button>
+          <button type="button" class="btn-reset-score" id="btn-reset-escape-end">Escape Endless</button>
+          <button type="button" class="btn-reset-score" id="btn-reset-assault-end">Assault Endless</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const stopProp = (e) => { e.stopPropagation(); };
+  ['pointerdown', 'pointermove', 'touchstart', 'touchmove', 'mousedown', 'mousemove', 'click'].forEach(evt => {
+    modal.addEventListener(evt, stopProp);
+  });
+
+  function updateModalUI() {
+    if (typeof Sound !== 'undefined') {
+      const isMuted = Sound.muted;
+      const btnOn = document.getElementById('btn-sound-on');
+      const btnOff = document.getElementById('btn-sound-off');
+      if (btnOn && btnOff) {
+        btnOn.classList.toggle('active', !isMuted);
+        btnOff.classList.toggle('active', isMuted);
+      }
+
+      const musicPct = Math.round((Sound.musicVolume !== undefined ? Sound.musicVolume : 0.60) * 100);
+      const sfxPct = Math.round((Sound.sfxVolume !== undefined ? Sound.sfxVolume : 1.0) * 100);
+
+      const sliderMusic = document.getElementById('slider-music-vol');
+      const valMusic = document.getElementById('val-music-vol');
+      if (sliderMusic) sliderMusic.value = musicPct;
+      if (valMusic) valMusic.textContent = `${musicPct}%`;
+
+      const sliderSFX = document.getElementById('slider-sfx-vol');
+      const valSFX = document.getElementById('val-sfx-vol');
+      if (sliderSFX) sliderSFX.value = sfxPct;
+      if (valSFX) valSFX.textContent = `${sfxPct}%`;
+    }
+
+    if (typeof escapeGame !== 'undefined') {
+      const isMouse = escapeGame.showMouse;
+      const btnYes = document.getElementById('btn-mouse-yes');
+      const btnNo = document.getElementById('btn-mouse-no');
+      if (btnYes && btnNo) {
+        btnYes.classList.toggle('active', isMouse);
+        btnNo.classList.toggle('active', !isMouse);
+      }
+      const btnResetStd = document.getElementById('btn-reset-escape-std');
+      const btnResetEnd = document.getElementById('btn-reset-escape-end');
+      if (btnResetStd && !btnResetStd.classList.contains('reset-done')) {
+        btnResetStd.textContent = `Escape Std (${escapeGame.bestNormal || 0})`;
+      }
+      if (btnResetEnd && !btnResetEnd.classList.contains('reset-done')) {
+        btnResetEnd.textContent = `Escape End (${escapeGame.bestOverclocked || 0})`;
+      }
+    }
+
+    if (typeof assault !== 'undefined') {
+      const btnResetAssault = document.getElementById('btn-reset-assault-end');
+      if (btnResetAssault && !btnResetAssault.classList.contains('reset-done')) {
+        const highest = typeof assault.getHighestEndlessWave === 'function' ? assault.getHighestEndlessWave() : (assault.highestEndlessWave || 0);
+        btnResetAssault.textContent = `Assault End (W${highest})`;
+      }
+    }
+  }
+
+  const closeModal = () => {
+    modal.classList.remove('active');
+  };
+
+  const closeBtn = document.getElementById('btn-close-settings');
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Sound Master Toggle
+  const btnSoundOn = document.getElementById('btn-sound-on');
+  if (btnSoundOn) {
+    btnSoundOn.addEventListener('click', () => {
+      if (typeof Sound !== 'undefined' && Sound.muted) {
+        Sound.toggleMute();
+        updateModalUI();
+      }
+    });
+  }
+
+  const btnSoundOff = document.getElementById('btn-sound-off');
+  if (btnSoundOff) {
+    btnSoundOff.addEventListener('click', () => {
+      if (typeof Sound !== 'undefined' && !Sound.muted) {
+        Sound.toggleMute();
+        updateModalUI();
+      }
+    });
+  }
+
+  // Music Volume Slider
+  const sliderMusic = document.getElementById('slider-music-vol');
+  if (sliderMusic) {
+    sliderMusic.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10) / 100;
+      if (typeof Sound !== 'undefined') {
+        Sound.setMusicVolume(val);
+      }
+      const valMusic = document.getElementById('val-music-vol');
+      if (valMusic) valMusic.textContent = `${e.target.value}%`;
+    });
+  }
+
+  // SFX Volume Slider
+  const sliderSFX = document.getElementById('slider-sfx-vol');
+  if (sliderSFX) {
+    sliderSFX.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10) / 100;
+      if (typeof Sound !== 'undefined') {
+        Sound.setSFXVolume(val);
+      }
+      const valSFX = document.getElementById('val-sfx-vol');
+      if (valSFX) valSFX.textContent = `${e.target.value}%`;
+    });
+    sliderSFX.addEventListener('change', () => {
+      if (typeof Sound !== 'undefined') Sound.play('uiClick');
+    });
+  }
+
+  // Mouse cursor toggle
+  const btnMouseYes = document.getElementById('btn-mouse-yes');
+  if (btnMouseYes) {
+    btnMouseYes.addEventListener('click', () => {
+      if (typeof escapeGame !== 'undefined') escapeGame.setShowMouse(true);
+      updateModalUI();
+    });
+  }
+
+  const btnMouseNo = document.getElementById('btn-mouse-no');
+  if (btnMouseNo) {
+    btnMouseNo.addEventListener('click', () => {
+      if (typeof escapeGame !== 'undefined') escapeGame.setShowMouse(false);
+      updateModalUI();
+    });
+  }
+
+  // Score Resets
+  function flashResetDone(btn, originalText) {
+    btn.classList.add('reset-done');
+    btn.textContent = 'Reset! ✓';
+    setTimeout(() => {
+      btn.classList.remove('reset-done');
+      updateModalUI();
+    }, 1200);
+  }
+
+  const btnResetEscapeStd = document.getElementById('btn-reset-escape-std');
+  if (btnResetEscapeStd) {
+    btnResetEscapeStd.addEventListener('click', function () {
+      if (typeof escapeGame !== 'undefined') {
+        escapeGame.resetBestScore('standard');
+        flashResetDone(this, `Escape Std (${escapeGame.bestNormal || 0})`);
+      }
+    });
+  }
+
+  const btnResetEscapeEnd = document.getElementById('btn-reset-escape-end');
+  if (btnResetEscapeEnd) {
+    btnResetEscapeEnd.addEventListener('click', function () {
+      if (typeof escapeGame !== 'undefined') {
+        escapeGame.resetBestScore('endless');
+        flashResetDone(this, `Escape End (${escapeGame.bestOverclocked || 0})`);
+      }
+    });
+  }
+
+  const btnResetAssaultEnd = document.getElementById('btn-reset-assault-end');
+  if (btnResetAssaultEnd) {
+    btnResetAssaultEnd.addEventListener('click', function () {
+      if (typeof assault !== 'undefined' && typeof assault.resetHighestEndlessWave === 'function') {
+        assault.resetHighestEndlessWave();
+        const disp = document.getElementById('assault-highest-wave-display');
+        if (disp) disp.textContent = '0';
+        flashResetDone(this, 'Assault End (W0)');
+      }
+    });
+  }
+
+  window.openSettingsModal = function () {
+    updateModalUI();
+    modal.classList.add('active');
+  };
+
+  if (typeof escapeGame !== 'undefined') {
+    escapeGame.updateSettingsModalUI = updateModalUI;
+    escapeGame.openSettingsModal = window.openSettingsModal;
+  }
+}
+
+/* ---------------------------------------------------------
+   Pause System & Pause Menu Modal
+--------------------------------------------------------- */
+function isGameActive() {
+  if (overlay && !overlay.classList.contains('hidden')) return false;
+  if (mode === 'escape') {
+    return escapeGame && (escapeGame.state === 'playing' || escapeGame.state === 'warping');
+  } else {
+    return assault && assault.state === 'playing';
+  }
+}
+
+function pauseGame() {
+  if (!isGameActive() || isGamePaused) return;
+  isGamePaused = true;
+  resetInputState();
+  if (typeof Sound !== 'undefined') Sound.pauseBGM();
+  showPauseModal();
+}
+
+function resumeGame() {
+  if (!isGamePaused) return;
+  isGamePaused = false;
+  resetInputState();
+  last = performance.now();
+  if (typeof Sound !== 'undefined') Sound.resumeBGM();
+  hidePauseModal();
+}
+
+function toggleGamePause() {
+  const settingsModal = document.getElementById('game-settings-modal');
+  if (settingsModal && settingsModal.classList.contains('active')) {
+    settingsModal.classList.remove('active');
+    return;
+  }
+
+  if (isGamePaused) {
+    resumeGame();
+  } else if (isGameActive()) {
+    pauseGame();
+  }
+}
+
+function updatePauseSoundUI() {
+  const isMuted = (typeof Sound !== 'undefined') ? Sound.muted : false;
+  const icon = document.getElementById('pause-sound-icon');
+  const text = document.getElementById('pause-sound-text');
+  const btn = document.getElementById('btn-pause-sound');
+  if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
+  if (text) text.textContent = isMuted ? 'Sound: MUTED' : 'Sound: ON';
+  if (btn) {
+    if (isMuted) btn.classList.add('muted');
+    else btn.classList.remove('muted');
+  }
+}
+
+function createPauseModal() {
+  if (document.getElementById('pause-modal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'pause-modal';
+  modal.innerHTML = `
+    <div class="pause-panel">
+      <h2 class="pause-title">⏸ GAME PAUSED</h2>
+      <div class="pause-subtitle" id="pause-mode-info">Tactical Base Defense</div>
+
+      <div class="pause-btn-list">
+        <button type="button" class="pause-btn primary" id="btn-pause-resume">
+          ▶ Resume Game
+        </button>
+
+        <div class="pause-btn-row-dual">
+          <button type="button" class="pause-btn secondary" id="btn-pause-sound" title="Toggle Sound (M)">
+            <span id="pause-sound-icon">🔊</span> <span id="pause-sound-text">Sound: ON</span>
+          </button>
+          <button type="button" class="pause-btn secondary" id="btn-pause-fullscreen" title="Toggle Fullscreen">
+            <span>⛶</span> Fullscreen
+          </button>
+        </div>
+
+        <button type="button" class="pause-btn secondary" id="btn-pause-settings">
+          ⚙️ Audio & Game Settings
+        </button>
+
+        <button type="button" class="pause-btn secondary" id="btn-pause-restart">
+          ⟳ Restart Mission
+        </button>
+
+        <button type="button" class="pause-btn secondary" id="btn-pause-quit" style="border-color:rgba(255,61,129,0.4); color:#ff85ad;">
+          ⌂ Quit to Main Menu
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const stopProp = (e) => { e.stopPropagation(); };
+  ['pointerdown', 'pointermove', 'touchstart', 'touchmove', 'mousedown', 'mousemove', 'click'].forEach(evt => {
+    modal.addEventListener(evt, stopProp);
+  });
+
+  document.getElementById('btn-pause-resume').addEventListener('click', () => {
+    if (typeof Sound !== 'undefined') Sound.play('uiClick');
+    resumeGame();
+  });
+
+  document.getElementById('btn-pause-sound').addEventListener('click', () => {
+    if (typeof Sound !== 'undefined') {
+      Sound.toggleMute();
+      updatePauseSoundUI();
+    }
+  });
+
+  document.getElementById('btn-pause-fullscreen').addEventListener('click', () => {
+    toggleFullscreen();
+  });
+
+  document.getElementById('btn-pause-settings').addEventListener('click', () => {
+    if (typeof Sound !== 'undefined') Sound.play('uiClick');
+    if (typeof openSettingsModal === 'function') {
+      openSettingsModal();
+    }
+  });
+
+  document.getElementById('btn-pause-restart').addEventListener('click', () => {
+    if (typeof Sound !== 'undefined') Sound.play('uiClick');
+    resumeGame();
+    if (mode === 'escape') {
+      if (typeof escapeGame !== 'undefined') {
+        if (escapeGame.isOverclockedMode) escapeGame.startOverclocked();
+        else escapeGame.start();
+      }
+    } else {
+      if (typeof assault !== 'undefined') assault.start();
+    }
+  });
+
+  document.getElementById('btn-pause-quit').addEventListener('click', () => {
+    if (typeof Sound !== 'undefined') Sound.play('uiClick');
+    resumeGame();
+    if (typeof showStart === 'function') {
+      showStart();
+    }
+  });
+}
+
+function showPauseModal() {
+  createPauseModal();
+  const modal = document.getElementById('pause-modal');
+  const info = document.getElementById('pause-mode-info');
+  if (info) {
+    if (mode === 'escape') {
+      const z = (typeof escapeGame !== 'undefined' && typeof escapeGame.getZoneConfig === 'function') ? escapeGame.getZoneConfig() : { name: 'Escape Run' };
+      info.textContent = `Escape Mode // ${z.name}`;
+    } else {
+      const diff = (typeof assault !== 'undefined') ? (assault.selectedDifficulty || 'normal').toUpperCase() : 'NORMAL';
+      const wave = (typeof assault !== 'undefined') ? assault.wave : 1;
+      info.textContent = `Assault Mode // ${diff} // Wave ${wave}`;
+    }
+  }
+  updatePauseSoundUI();
+  if (modal) modal.classList.add('active');
+}
+
+function hidePauseModal() {
+  const modal = document.getElementById('pause-modal');
+  if (modal) modal.classList.remove('active');
+}
+
 function initGame(){
   resize();
-  const fsBtn = document.getElementById('btn-fullscreen');
-  if (fsBtn) fsBtn.addEventListener('click', toggleFullscreen);
+  createSettingsModal();
+  createPauseModal();
+  const pauseBtn = document.getElementById('btn-pause');
+  if (pauseBtn) pauseBtn.addEventListener('click', toggleGamePause);
+  if (typeof Sound !== 'undefined') Sound.updateUI();
   renderHUD();
   showStart();
   requestAnimationFrame(loop);

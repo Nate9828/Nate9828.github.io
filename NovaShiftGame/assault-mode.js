@@ -72,6 +72,9 @@ const assault = {
   bolts: [], enemyBolts: [], missiles: [], enemies: [], drops: [], particles: [], boss: null,
 
   start() {
+    if (typeof isGamePaused !== 'undefined' && isGamePaused && typeof resumeGame === 'function') {
+      resumeGame();
+    }
     const W = this.vw, H = this.vh;
     this.state = 'playing'; this.wave = 1; this.kills = 0; this.points = 0;
     this.totalWaves = this.selectedDifficulty === 'endless' ? Infinity : 4;
@@ -96,6 +99,41 @@ const assault = {
     removeBossHUD();
   },
 
+  stop() {
+    this.state = 'idle';
+    const vp = this.getViewport();
+    const W = vp.vw, H = vp.vh;
+    this.wave = 1;
+    this.kills = 0;
+    this.points = 0;
+    this.health = this.maxHealth || 100;
+    this.overchargeTimer = 0;
+    this.healthFlashTimer = 0;
+    this.shieldCount = 0;
+    this.shields = [];
+    this.lastShotTime = 0;
+    this.spawnQueue = 0;
+    this.spawnTimer = 0;
+    this.activePulseTurrets = [];
+    this.currentMutator = null;
+    this.activeSolarFlares = [];
+    this.bolts = [];
+    this.enemyBolts = [];
+    this.missiles = [];
+    this.enemies = [];
+    this.drops = [];
+    this.particles = [];
+    this.boss = null;
+    if (this.turret) {
+      this.turret.x = Math.max(70, W * 0.09);
+      this.turret.y = H / 2;
+      this.turret.vx = 0;
+      this.turret.vy = 0;
+    }
+    removeBossHUD();
+    if (typeof removeWaveAnnouncement === 'function') removeWaveAnnouncement();
+  },
+
   beginWave() {
     if (this.selectedDifficulty === 'endless') {
       this.checkHighestWave();
@@ -103,14 +141,43 @@ const assault = {
     const isHard = this.selectedDifficulty === 'hard';
     const isEndless = this.selectedDifficulty === 'endless';
     const isBossWave = (isEndless && (this.wave === 4 || (this.wave > 4 && (this.wave - 4) % 5 === 0))) || (!isEndless && this.wave === 4);
+    const bossIndex = isEndless ? Math.floor((this.wave - 4) / 5) + 1 : 1;
+
+    // Dynamic Soundtrack Theme Management
+    if (typeof Sound !== 'undefined') {
+      if (isBossWave) {
+        if (isEndless) {
+          // Endless Mode: Boss 1 -> Leviathan Omega (boss1), Boss 2 -> Boss Music 2 (boss2), Boss 3 -> Boss Music 3 (boss3), repeating
+          const endlessBossCycle = ['boss1', 'boss2', 'boss3'];
+          const chosenTheme = endlessBossCycle[(bossIndex - 1) % endlessBossCycle.length];
+          Sound.playTheme(chosenTheme);
+        } else if (isHard) {
+          // Hard Mode: 1st boss = Leviathan Omega (boss1), 2nd boss = Boss Music 3 (boss3)
+          Sound.playTheme((bossIndex >= 2) ? 'boss3' : 'boss1');
+        } else {
+          Sound.playTheme('boss1');
+        }
+      } else if (isEndless) {
+        // Endless non-boss waves:
+        // Waves 1-3 -> Infinite Overdrive (endless1)
+        // Waves 5-8 -> Infinite Overdrive 2 (endless2)
+        // Waves 10-13 -> Infinite Overdrive (endless1)
+        // Waves 15-18 -> Infinite Overdrive 2 (endless2)...
+        const endlessSegmentIndex = this.wave < 4 ? 0 : Math.floor((this.wave - 5) / 5) + 1;
+        const endlessTheme = (endlessSegmentIndex % 2 === 0) ? 'endless1' : 'endless2';
+        Sound.playTheme(endlessTheme);
+      } else {
+        Sound.playTheme('normal');
+      }
+    }
 
     if (isBossWave) {
       this.currentMutator = null;
       this.spawnQueue = 0;
       this.spawnBoss();
-      const bossIndex = isEndless ? Math.floor((this.wave - 4) / 5) + 1 : 1;
       const isHardBossType = isEndless ? (bossIndex % 2 === 0) : isHard;
       const bossName = isHardBossType ? 'LEVIATHAN OMEGA' : 'LEVIATHAN FLAGSHIP';
+      if (typeof Sound !== 'undefined') Sound.play('bossAlarm');
       showWaveAnnouncement('⚠️ WARNING: BOSS DETECTED', `${bossName} APPROACHING${isEndless ? ` (BOSS ${bossIndex})` : ''}`, true);
     } else {
       let count = [8, 12, 16][Math.min(2, (this.wave - 1) % 4)];
@@ -145,6 +212,7 @@ const assault = {
           });
           this.solarFlareSpawnTimer = randInt(3000, 5000);
         }
+        if (typeof Sound !== 'undefined') Sound.play('bossAlarm');
         showWaveAnnouncement(this.currentMutator.title, this.currentMutator.sub, true);
       } else {
         this.currentMutator = null;
@@ -156,6 +224,7 @@ const assault = {
           'INTERCEPTOR FLEET // INTENSE FIRE FIGHT'
         ];
         const subIdx = (this.wave - 1) % subtitles.length;
+        if (typeof Sound !== 'undefined') Sound.play('uiClick');
         showWaveAnnouncement(`WAVE ${this.wave} // INCOMING`, subtitles[subIdx], false);
       }
     }
@@ -300,6 +369,7 @@ const assault = {
   launchMissileSalvo(b, count, isStaggered) {
     const vp = this.getViewport();
     const H = vp.vh, speedScale = vp.speedScale;
+    if (typeof Sound !== 'undefined') Sound.play('missileLaunch');
     if (isStaggered) {
       b.missileQueue = [];
       for (let i = 0; i < count; i++) {
@@ -325,6 +395,7 @@ const assault = {
   triggerPhaseBurst(b) {
     const vp = this.getViewport();
     const H = vp.vh, speedScale = vp.speedScale;
+    if (typeof Sound !== 'undefined') Sound.play('bossPhaseTransition');
     this.burstParticles(b.x, b.y, b.phase === 3 ? '#e040fb' : (b.phase === 1 ? '#ff1744' : '#ffb020'));
 
     if (b.phase === 1) {
@@ -408,6 +479,18 @@ const assault = {
       this.bolts.push({ x: this.turret.x + 18, y: this.turret.y - 6, vx: boltSpeed, vy: -140 * speedScale, dmg: boltDamage });
       this.bolts.push({ x: this.turret.x + 18, y: this.turret.y + 6, vx: boltSpeed, vy: 140 * speedScale, dmg: boltDamage });
     }
+
+    if (typeof Sound !== 'undefined') {
+      if (this.overchargeTimer > 0) {
+        Sound.play('playerShoot', 'overcharge');
+      } else if (this.multishotLevel === 3) {
+        Sound.play('playerShoot', 'triple');
+      } else if (this.multishotLevel === 2) {
+        Sound.play('playerShoot', 'dual');
+      } else {
+        Sound.play('playerShoot', 'single');
+      }
+    }
   },
 
   buyUpgrade(type) {
@@ -416,21 +499,29 @@ const assault = {
     const mCosts = isHard ? [200, 400] : [150, 350];
     const fCosts = isHard ? [250, 450] : [200, 400];
 
+    let purchased = false;
+    let attempted = false;
+
     if (type === 'rate' && this.fireRateLevel < 3) {
+      attempted = true;
       const cost = rCosts[this.fireRateLevel - 1];
       if (this.points >= cost) {
         this.points -= cost;
         this.fireRateLevel++;
         this.burstParticles(this.turret.x, this.turret.y, 'var(--energy)');
+        purchased = true;
       }
     } else if (type === 'spread' && this.multishotLevel < 3) {
+      attempted = true;
       const cost = mCosts[this.multishotLevel - 1];
       if (this.points >= cost) {
         this.points -= cost;
         this.multishotLevel++;
         this.burstParticles(this.turret.x, this.turret.y, 'var(--player)');
+        purchased = true;
       }
     } else if ((type === 'fortify' || type === 'laser') && this.fortifyLevel < 3) {
+      attempted = true;
       const cost = fCosts[this.fortifyLevel - 1];
       if (this.points >= cost) {
         this.points -= cost;
@@ -439,8 +530,10 @@ const assault = {
         this.health = Math.min(this.maxHealth, this.health + 50);
         this.healthFlashTimer = 1000;
         this.burstParticles(this.turret.x, this.turret.y, '#4dff88');
+        purchased = true;
       }
     } else if (type === 'pulse_turrets' && this.selectedDifficulty === 'endless' && this.wave > 9) {
+      attempted = true;
       const cost = this.pulseTurretCost || 600;
       if (this.points >= cost) {
         this.points -= cost;
@@ -457,8 +550,19 @@ const assault = {
           timer: 12.0, shootTimer: 0
         });
         this.burstParticles(this.turret.x, this.turret.y, '#00f2fe');
+        purchased = true;
+        if (typeof Sound !== 'undefined') Sound.play('turretDeploy');
       }
     }
+
+    if (typeof Sound !== 'undefined') {
+      if (purchased && type !== 'pulse_turrets') {
+        Sound.play('upgradeSuccess');
+      } else if (!purchased && attempted) {
+        Sound.play('upgradeFail');
+      }
+    }
+
     renderAssaultHUDNumbers();
   },
 
@@ -475,15 +579,24 @@ const assault = {
       for (let i = 0; i < 16; i++) {
         this.particles.push(spark(this.turret.x, this.turret.y, 'var(--hazard)'));
       }
+      if (typeof Sound !== 'undefined') {
+        if (this.shields.length === 0) {
+          Sound.play('shieldBreak');
+        } else {
+          Sound.play('hitShield');
+        }
+      }
       return; // Stacked shield absorbs 1 hit completely
     }
     this.health -= n;
+    if (typeof Sound !== 'undefined') Sound.play('hitHull');
     for (let i = 0; i < 12; i++) this.particles.push(spark(this.turret.x, this.turret.y, 'var(--player)'));
     if (this.health <= 0) {
       this.health = 0;
       this.state = 'over';
       removeBossHUD();
       this.checkHighestWave();
+      if (typeof Sound !== 'undefined') Sound.play('gameOver');
       showAssaultEnd(false);
     }
   },
@@ -549,6 +662,7 @@ const assault = {
           timer: 2000,
           lanes: [rand(HUD_HEIGHT + 50, H - 60), rand(HUD_HEIGHT + 50, H - 60)]
         });
+        if (typeof Sound !== 'undefined') Sound.play('solarFlareWarning');
         showWaveAnnouncement('☀️ SOLAR HEAT FLARE', 'EVACUATE HAZARD LANES', true);
       }
     }
@@ -561,6 +675,7 @@ const assault = {
           if (flare.timer <= 0) {
             flare.state = 'firing';
             flare.timer = 1200; // 1.2s heat wave duration
+            if (typeof Sound !== 'undefined') Sound.play('solarFlareBeam');
           }
         } else if (flare.state === 'firing') {
           flare.timer -= dt;
@@ -724,6 +839,9 @@ const assault = {
     this.bolts = this.bolts.filter(b => b.x < W + 40 && b.y > 0 && b.y < H);
 
     // Move Homing Missiles
+    if (this.missiles.length > 0 && Math.random() < 0.035) {
+      if (typeof Sound !== 'undefined') Sound.play('missileBeep');
+    }
     for (const m of this.missiles) {
       m.x += m.vx * dt / 1000;
       const dy = m.targetY - m.y;
@@ -777,6 +895,7 @@ const assault = {
             targetY: this.turret.y,
             hp: 1
           });
+          if (typeof Sound !== 'undefined') Sound.play('missileLaunch');
           for (let i = 0; i < 6; i++) {
             this.particles.push(spark(e.x - e.r, e.y, '#ff1744'));
           }
@@ -807,6 +926,7 @@ const assault = {
           if (e.chargeTimer >= e.maxChargeTime) {
             e.state = 'firing';
             e.fireTimer = 0;
+            if (typeof Sound !== 'undefined') Sound.play('solarFlareBeam');
           }
         } else if (e.state === 'firing') {
           e.fireTimer += dt;
@@ -846,6 +966,7 @@ const assault = {
         if (!b.dead && !m.dead && dist2(b.x, b.y, m.x, m.y) < (m.r + 8) ** 2) {
           if (!b.pierce) b.dead = true;
           m.dead = true;
+          if (typeof Sound !== 'undefined') Sound.play('explosionSmall');
           for (let i = 0; i < 8; i++) this.particles.push(spark(m.x, m.y, 'var(--energy)'));
         }
       }
@@ -855,6 +976,7 @@ const assault = {
         if (!b.dead && !e.dead && dist2(b.x, b.y, e.x, e.y) < (e.r + 6) ** 2) {
           const isFrontalHit = b.x < e.x && Math.abs(b.y - e.y) < e.r * 0.7;
           if (e.type === 'cruiser' && isFrontalHit && !b.pierce && !b.pierceShields) {
+            if (typeof Sound !== 'undefined') Sound.play('hitShield');
             for (let i = 0; i < 4; i++) this.particles.push(spark(b.x, b.y, 'var(--hazard)'));
             b.dead = true;
             continue;
@@ -862,11 +984,19 @@ const assault = {
 
           if (!b.pierce) b.dead = true;
           e.hp -= b.dmg || 1;
+          if (typeof Sound !== 'undefined') Sound.play('hitEnemy');
           for (let i = 0; i < 6; i++) this.particles.push(spark(e.x, e.y, 'var(--energy)'));
 
           if (e.hp <= 0) {
             e.dead = true;
             this.kills++;
+            if (typeof Sound !== 'undefined') {
+              if (e.type === 'cruiser' || e.type === 'beam_dreadnought') {
+                Sound.play('explosionMedium');
+              } else {
+                Sound.play('explosionSmall');
+              }
+            }
             if (e.isBossGuard && typeof e.guardSlotIndex === 'number' && this.boss) {
               if (this.boss.phase === 5 && this.boss.phase5GuardSlots && this.boss.phase5GuardSlots[e.guardSlotIndex]) {
                 this.boss.phase5GuardSlots[e.guardSlotIndex].respawnTimer = 5000;
@@ -896,20 +1026,24 @@ const assault = {
       if (this.boss && !b.dead && dist2(b.x, b.y, this.boss.x, this.boss.y) < (this.boss.r + 18) ** 2) {
         if (this.boss.invulnerable) {
           b.dead = true;
+          if (typeof Sound !== 'undefined') Sound.play('hitShield');
           for (let i = 0; i < 6; i++) this.particles.push(spark(b.x, b.y, '#7c5cff'));
         } else {
           if (!b.pierce) b.dead = true;
           this.boss.hp -= b.dmg || 1;
+          if (typeof Sound !== 'undefined') Sound.play('hitEnemy');
           for (let i = 0; i < 8; i++) this.particles.push(spark(b.x, b.y, 'var(--player)'));
           if (this.boss.hp <= 0) {
             this.boss.hp = 0;
             this.kills++;
             this.points += 500;
+            if (typeof Sound !== 'undefined') Sound.play('bossExplosion');
             this.burstParticles(this.boss.x, this.boss.y, 'var(--energy)');
             this.boss = null;
             removeBossHUD();
 
             if (this.selectedDifficulty === 'endless') {
+              if (typeof Sound !== 'undefined') Sound.play('waveClear');
               showWaveAnnouncement('BOSS DESTROYED!', `WAVE ${this.wave} CLEARED`, true);
               this.enemies = this.enemies.filter(e => !e.isBossDrone && !e.isBossGuard && !e.isEscort);
               this.wave++;
@@ -955,6 +1089,7 @@ const assault = {
 
       if (dist2(d.x, d.y, this.turret.x, this.turret.y) < (this.turret.r + d.r + 4) ** 2) {
         d.collected = true;
+        if (typeof Sound !== 'undefined') Sound.play('pickup', d.type);
         if (d.type === 'nanite') {
           this.health = Math.min(this.maxHealth || 100, this.health + 25);
           this.healthFlashTimer = 1000;
@@ -975,6 +1110,7 @@ const assault = {
     // Wave clear check
     const isWaveComplete = this.spawnQueue <= 0 && this.enemies.length === 0 && !this.boss && this.state === 'playing';
     if (isWaveComplete && (this.selectedDifficulty === 'endless' || this.wave < 4)) {
+      if (typeof Sound !== 'undefined') Sound.play('waveClear');
       this.wave++;
       this.checkHighestWave();
       this.beginWave();
@@ -994,6 +1130,7 @@ const assault = {
         pt.shootTimer += dtSec;
         if (pt.shootTimer >= 0.35) {
           pt.shootTimer = 0;
+          if (typeof Sound !== 'undefined') Sound.play('turretShoot');
           const beamSpeed = 1600 * speedScale;
           this.bolts.push({
             x: pt.x + 20,
@@ -1106,6 +1243,9 @@ const assault = {
           b.savedPhase = null;
           b.phaseTimer = 0;
           b.invulnerable = false;
+          if (this.selectedDifficulty === 'hard' && typeof Sound !== 'undefined') {
+            Sound.playTheme('boss3');
+          }
           this.triggerPhaseBurst(b);
         }
       }
@@ -1704,6 +1844,10 @@ function renderAssaultHUDNumbers() {
 
 function showAssaultEnd(win) {
   removeWaveAnnouncement();
+  if (typeof Sound !== 'undefined') {
+    Sound.fadeOutBGM(600);
+    Sound.play(win ? 'waveClear' : 'gameOver');
+  }
   if (typeof assault !== 'undefined' && typeof assault.checkHighestWave === 'function') {
     assault.checkHighestWave();
   }

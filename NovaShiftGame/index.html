@@ -21,9 +21,11 @@
     <canvas id="game"></canvas>
   </div>
 
-  <button type="button" id="btn-fullscreen" class="fullscreen-btn" title="Toggle Fullscreen">
-    <span>⛶</span><span class="fs-label"></span>
-  </button>
+  <div class="top-actions">
+    <button type="button" id="btn-pause" class="top-action-btn pause-btn" title="Pause Game (P / Esc)">
+      <span class="pause-icon">⏸</span>
+    </button>
+  </div>
 
   <div id="hud">
     <div class="hud-group" id="hud-left"></div>
@@ -39,9 +41,13 @@
     <div class="panel" id="panel"></div>
   </div>
 
+  <script src="sound.js"></script>
+  <script src="sound-assault.js"></script>
+  <script src="sound-escape.js"></script>
   <script src="main.js"></script>
   <script src="escape-mode.js"></script>
   <script src="assault-mode.js"></script>
+  <script src="Debug Console.js"></script>
   <script>
     initGame();
   </script>

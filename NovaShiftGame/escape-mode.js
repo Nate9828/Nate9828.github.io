@@ -10,6 +10,7 @@ const ESCAPE_ZONES = [
     type: 'distance',
     target: 5000,
     bgTheme: 'asteroid',
+    musicTheme: 'escape_zone1',
     desc: 'Dodge incoming asteroids and cover 5000m to reach the hypergate!',
     accentColor: '#4dd8ff',
     badge: 'ZONE 1'
@@ -20,6 +21,7 @@ const ESCAPE_ZONES = [
     type: 'crystals',
     target: 15,
     bgTheme: 'plasma',
+    musicTheme: 'escape_zone2',
     desc: 'Extract 15 Plasma Cores amidst high-speed electrical orb surges!',
     accentColor: '#e056fd',
     badge: 'ZONE 2'
@@ -30,6 +32,7 @@ const ESCAPE_ZONES = [
     type: 'time',
     target: 45,
     bgTheme: 'cyber',
+    musicTheme: 'escape_zone3',
     desc: 'Evade sweeping laser defense matrices and full-screen wall beams!',
     accentColor: '#00f2fe',
     badge: 'ZONE 3'
@@ -40,6 +43,7 @@ const ESCAPE_ZONES = [
     type: 'distance',
     target: 7500,
     bgTheme: 'blackhole',
+    musicTheme: 'escape_zone4',
     desc: 'Break free from event horizon gravity and rapid void mine swarms!',
     accentColor: '#a855f7',
     badge: 'ZONE 4'
@@ -50,6 +54,7 @@ const ESCAPE_ZONES = [
     type: 'distance',
     target: 6000,
     bgTheme: 'cavern',
+    musicTheme: 'escape_zone5',
     desc: 'Navigate morphing cave walls, split tunnels, and wall magma geyser eruptions!',
     accentColor: '#ff8c00',
     badge: 'ZONE 5'
@@ -173,6 +178,9 @@ const escapeGame = {
   spawnInterval: 900,
 
   start() {
+    if (typeof isGamePaused !== 'undefined' && isGamePaused && typeof resumeGame === 'function') {
+      resumeGame();
+    }
     this.isOverclockedMode = false;
     this.state = 'playing';
     this.score = 0;
@@ -197,6 +205,9 @@ const escapeGame = {
   },
 
   startOverclocked() {
+    if (typeof isGamePaused !== 'undefined' && isGamePaused && typeof resumeGame === 'function') {
+      resumeGame();
+    }
     this.isOverclockedMode = true;
     this.state = 'playing';
     this.score = 0;
@@ -221,16 +232,59 @@ const escapeGame = {
     this.updateCursorVisibility();
   },
 
+  stop() {
+    if (typeof Sound !== 'undefined' && Sound) Sound.fadeOutBGM(400);
+    this.state = 'idle';
+    this.rocks = [];
+    this.gems = [];
+    this.plasmaOrbs = [];
+    this.lasers = [];
+    this.voidMines = [];
+    this.caveBats = [];
+    this.geysers = [];
+    this.particles = [];
+    this.warpSpeedLines = [];
+    this.invuln = 0;
+    this.shieldTime = 0;
+    this.score = 0;
+    this.crystals = 0;
+    this.lives = this.maxLives || 3;
+    this.zoneTime = 0;
+    this.spawnTimer = 0;
+    const vp = (typeof this.getViewport === 'function') ? this.getViewport() : { vw: 360, vh: 640 };
+    if (this.player) {
+      this.player.x = vp.vw / 2;
+      this.player.y = vp.vh - Math.max(90, vp.vh * 0.14);
+      this.player.vx = 0;
+      this.player.vy = 0;
+    }
+    if (typeof updateDangerVignette === 'function') updateDangerVignette(false);
+    this.updateCursorVisibility();
+  },
+
   initZone(idx) {
     this.currentZoneIdx = idx;
-    if (idx >= 5 && !this.unlockedOverclocked) {
+    const justUnlocked = idx >= 5 && !this.unlockedOverclocked;
+    if (justUnlocked) {
       this.unlockedOverclocked = true;
       if (typeof saveSecure === 'function') saveSecure('novashift_escape_unlocked_overclocked', true);
+      // Show unlock notification after a short delay so the warp transition is visible first
+      setTimeout(() => {
+        showEscapeUnlockNotification();
+      }, 800);
     }
     const z = this.getZoneConfig();
+
+    // Trigger zone-specific music crossfade
+    if (typeof Sound !== 'undefined' && Sound) {
+      Sound.playTheme(z.musicTheme || z.bgTheme || 'escape_zone1', true);
+    }
+
     this.zoneTime = 0;
     this.spawnTimer = 0;
     this.spawnInterval = z.bgTheme === 'plasma' ? 550 : 800;
+    this.lastNearExit = false;
+    this.heartbeatTimer = 0;
     this.rocks = [];
     this.gems = [];
     this.plasmaOrbs = [];
@@ -279,6 +333,7 @@ const escapeGame = {
       type: 'distance',
       target: 10000 + loopNum * 2500,
       bgTheme: 'overclocked',
+      musicTheme: 'escape_overclocked',
       desc: 'Progressive hazard matrix! Starts with asteroids, adding plasma, lasers, and singularity over time!',
       accentColor: '#ff2a6d',
       badge: `LOOP ${loopNum}`
@@ -418,7 +473,18 @@ const escapeGame = {
   },
 
   hit() {
-    if (this.invuln > 0 || this.shieldTime > 0 || this.state === 'warping') return;
+    if (this.invuln > 0 || this.state === 'warping') return;
+
+    if (this.shieldTime > 0) {
+      this.shieldTime = 0;
+      this.invuln = 600;
+      if (typeof Sound !== 'undefined' && Sound) Sound.shieldBreak();
+      const pColor = '#a855f7';
+      for (let i = 0; i < 16; i++) {
+        this.particles.push(spark(this.player.x, this.player.y, pColor));
+      }
+      return;
+    }
 
     this.lives--;
     this.invuln = 1400;
@@ -426,6 +492,15 @@ const escapeGame = {
     const pColor = getComputedColor('--player') || '#ff3d81';
     for (let i = 0; i < 22; i++) {
       this.particles.push(spark(this.player.x, this.player.y, pColor));
+    }
+
+    if (typeof Sound !== 'undefined' && Sound) {
+      if (this.lives <= 0) {
+        Sound.explosionLarge();
+        Sound.gameOver();
+      } else {
+        Sound.hitHull();
+      }
     }
 
     if (this.lives <= 0) {
@@ -443,11 +518,23 @@ const escapeGame = {
     this.state = 'warping';
     this.warpTimer = 0;
 
+    if (typeof Sound !== 'undefined' && Sound) {
+      Sound.hypergateWarp();
+      if (this.lives < this.maxLives) {
+        setTimeout(() => {
+          if (typeof Sound !== 'undefined' && Sound) Sound.pickup('repair');
+        }, 220);
+      }
+    }
+
     const healMsg = this.lives < this.maxLives ? ' +1 REPAIR' : ' SHIELDED';
     this.lives = Math.min(this.maxLives, this.lives + 1);
 
     const currZ = this.getZoneConfig();
-    this.warpBannerText = `${currZ.name.toUpperCase()} ESCAPED!${healMsg}`;
+    const isLastNormalZone = this.currentZoneIdx === 4 && !this.unlockedOverclocked;
+    this.warpBannerText = isLastNormalZone
+      ? `${currZ.name.toUpperCase()} ESCAPED! ⚡ ENDLESS AWAITS...`
+      : `${currZ.name.toUpperCase()} ESCAPED!${healMsg}`;
     this.bannerAlpha = 1.0;
 
     const vp = this.getViewport();
@@ -494,6 +581,9 @@ const escapeGame = {
         this.currentZoneIdx++;
         this.state = 'playing';
         this.initZone(this.currentZoneIdx);
+        if (typeof Sound !== 'undefined' && Sound) {
+          Sound.hypergateExit();
+        }
         this.player.y = H - Math.max(90, H * 0.14);
         renderHUD();
       }
@@ -505,6 +595,17 @@ const escapeGame = {
     this.zoneTime += dt;
     if (this.invuln > 0) this.invuln -= dt;
     if (this.shieldTime > 0) this.shieldTime -= dt;
+
+    // Critical health heartbeat SFX pulse
+    if (this.lives === 1) {
+      this.heartbeatTimer = (this.heartbeatTimer || 0) + dt;
+      if (this.heartbeatTimer >= 1000) {
+        this.heartbeatTimer = 0;
+        if (typeof Sound !== 'undefined' && Sound) Sound.criticalHeartbeat();
+      }
+    } else {
+      this.heartbeatTimer = 0;
+    }
 
     const z = this.getZoneConfig();
     const zoneSecs = this.zoneTime / 1000;
@@ -712,6 +813,7 @@ const escapeGame = {
               width: rand(18, 24),
               state: 'warning'
             });
+            if (typeof Sound !== 'undefined' && Sound) Sound.laserWarning();
           } else {
             // Rare Dual Cross Beam with 1500ms warning
             const hPos = rand(64 + 60, H - 60);
@@ -719,6 +821,7 @@ const escapeGame = {
             const wTime = Math.max(950, 1500 / (1 + zoneSecs * 0.01));
             this.lasers.push({ type: 'beam', isHorizontal: true, pos: hPos, warnTimer: wTime, fireTimer: 700, width: 20, state: 'warning' });
             this.lasers.push({ type: 'beam', isHorizontal: false, pos: vPos, warnTimer: wTime, fireTimer: 700, width: 20, state: 'warning' });
+            if (typeof Sound !== 'undefined' && Sound) Sound.laserWarning();
           }
         }
       } else {
@@ -735,12 +838,14 @@ const escapeGame = {
             width: rand(20, 30),
             state: 'warning'
           });
+          if (typeof Sound !== 'undefined' && Sound) Sound.laserWarning();
         } else if (lType < 0.75) {
           const hPos = rand(64 + 60, H - 60);
           const vPos = rand(40, W - 40);
           const wTime = Math.max(750, 1350 / (1 + zoneSecs * 0.015));
           this.lasers.push({ type: 'beam', isHorizontal: true, pos: hPos, warnTimer: wTime, fireTimer: 750, width: 24, state: 'warning' });
           this.lasers.push({ type: 'beam', isHorizontal: false, pos: vPos, warnTimer: wTime, fireTimer: 750, width: 24, state: 'warning' });
+          if (typeof Sound !== 'undefined' && Sound) Sound.laserWarning();
         } else {
           const side = Math.random() < 0.5 ? 'left' : 'right';
           this.lasers.push({
@@ -750,6 +855,7 @@ const escapeGame = {
             fireTimer: 900,
             state: 'warning'
           });
+          if (typeof Sound !== 'undefined' && Sound) Sound.laserWarning();
         }
       }
     }
@@ -766,6 +872,7 @@ const escapeGame = {
           lengthRatio: rand(0.55, 0.68),
           state: 'warning'
         });
+        if (typeof Sound !== 'undefined' && Sound) Sound.geyserWarning();
       }
     }
   },
@@ -777,7 +884,10 @@ const escapeGame = {
 
       if (g.state === 'warning') {
         g.warnTimer -= dt;
-        if (g.warnTimer <= 0) g.state = 'firing';
+        if (g.warnTimer <= 0) {
+          g.state = 'firing';
+          if (typeof Sound !== 'undefined' && Sound) Sound.geyserErupt();
+        }
       } else if (g.state === 'firing') {
         g.fireTimer -= dt;
         if (g.fireTimer <= 0) {
@@ -810,6 +920,7 @@ const escapeGame = {
           g.state = 'warning';
           g.warnTimer = 1100;
           g.fireTimer = 800;
+          if (typeof Sound !== 'undefined' && Sound) Sound.geyserWarning();
         }
       }
     }
@@ -854,7 +965,10 @@ const escapeGame = {
     for (const l of this.lasers) {
       if (l.state === 'warning') {
         l.warnTimer -= dt;
-        if (l.warnTimer <= 0) l.state = 'firing';
+        if (l.warnTimer <= 0) {
+          l.state = 'firing';
+          if (typeof Sound !== 'undefined' && Sound) Sound.laserFire();
+        }
       } else if (l.state === 'firing') {
         l.fireTimer -= dt;
         if (l.fireTimer <= 0) l.state = 'done';
@@ -925,16 +1039,19 @@ const escapeGame = {
           const z = this.getZoneConfig();
           if (z.type === 'time') this.zoneProgress = Math.max(0, this.zoneProgress - 3);
           this.score += 60;
+          if (typeof Sound !== 'undefined' && Sound) Sound.pickup('chrono');
           for (let i = 0; i < 12; i++) this.particles.push(spark(g.x, g.y, '#00f2fe'));
         } else if (g.type === 'shield') {
           this.shieldTime = 3500;
           this.score += 50;
+          if (typeof Sound !== 'undefined' && Sound) Sound.pickup('shield');
           for (let i = 0; i < 14; i++) this.particles.push(spark(g.x, g.y, '#a855f7'));
         } else {
           this.score += 40;
           this.crystals++;
           const z = this.getZoneConfig();
           if (z.type === 'crystals') this.zoneProgress++;
+          if (typeof Sound !== 'undefined' && Sound) Sound.pickup('energy');
           for (let i = 0; i < 10; i++) this.particles.push(spark(g.x, g.y, 'var(--energy)'));
         }
         return false;
@@ -1289,6 +1406,10 @@ function renderHUDNumbers() {
     const chip = objVal.closest ? objVal.closest('.hud-chip') : objVal.parentElement;
     if (chip) {
       if (isNearExit) {
+        if (!escapeGame.lastNearExit && escapeGame.state === 'playing') {
+          escapeGame.lastNearExit = true;
+          if (typeof Sound !== 'undefined' && Sound) Sound.nearExitAlert();
+        }
         chip.style.boxShadow = `0 0 22px ${z.accentColor}, inset 0 0 12px ${z.accentColor}`;
         chip.style.borderColor = z.accentColor;
         chip.style.transform = 'scale(1.06)';
@@ -1303,6 +1424,10 @@ function renderHUDNumbers() {
 }
 
 function showEscapeGameOver() {
+  if (typeof Sound !== 'undefined' && Sound) {
+    Sound.fadeOutBGM(600);
+    Sound.gameOver();
+  }
   updateDangerVignette(false);
   escapeGame.checkBestScore();
   const z = escapeGame.getZoneConfig();
@@ -1349,6 +1474,65 @@ function showEscapeGameOver() {
     if (typeof showStart === 'function') showStart();
   });
 }
+
+/* ---------------------------------------------------------
+   Endless Overclocked Unlock Notification
+--------------------------------------------------------- */
+function showEscapeUnlockNotification() {
+  // Remove any existing notification
+  const existing = document.getElementById('escape-unlock-notification');
+  if (existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'escape-unlock-notification';
+  el.style.cssText = `
+    position: fixed;
+    top: 76px;
+    left: 50%;
+    transform: translate(-50%, -25px) scale(0.92);
+    z-index: 99999;
+    background: linear-gradient(135deg, rgba(10,11,26,0.97) 0%, rgba(28,10,54,0.97) 100%);
+    border: 2px solid #ff2a6d;
+    border-radius: 16px;
+    padding: 16px 28px 14px;
+    text-align: center;
+    max-width: 360px;
+    width: 90vw;
+    box-shadow: 0 8px 40px rgba(255,42,109,0.55), 0 0 80px rgba(255,42,109,0.25), inset 0 0 24px rgba(255,42,109,0.1);
+    font-family: 'Chakra Petch', 'Inter', sans-serif;
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+  `;
+  el.innerHTML = `
+    <div style="font-size:1.8rem; margin-bottom:2px; filter: drop-shadow(0 0 12px #ff2a6d);">⚡</div>
+    <div style="font-size:1.15rem; font-weight:800; color:#fff; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; text-shadow: 0 0 16px #ff2a6d;">Endless Overclocked Mode Unlocked</div>
+    <div style="font-size:0.68rem; font-weight:700; letter-spacing:2px; color:#ff2a6d; text-transform:uppercase; opacity:0.85;">⚡ Zone 6 Reached ⚡</div>
+  `;
+  document.body.appendChild(el);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'translate(-50%, 0) scale(1)';
+    });
+  });
+
+  // Play unlock sound if available
+  if (typeof Sound !== 'undefined' && Sound) {
+    if (typeof Sound.hypergateWarp === 'function') Sound.hypergateWarp();
+    else if (typeof Sound.play === 'function') Sound.play('victory');
+  }
+
+  // Auto-dismiss after 4.5 seconds
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translate(-50%, -25px) scale(0.92)';
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 400);
+  }, 4500);
+}
+window.showEscapeUnlockNotification = showEscapeUnlockNotification;
 
 /* ---------------------------------------------------------
    Sprite Drawing & Hazards Visual Effects
@@ -1893,130 +2077,14 @@ if (typeof initEscapeDebugControls === 'function') {
    ========================================================================== */
 
 /* ==========================================================================
-   ESCAPE MODE SETTINGS MODAL
+   ESCAPE MODE SETTINGS MODAL DELEGATE
    ========================================================================== */
 (function initEscapeSettings() {
-  if (typeof document === 'undefined') return;
-
-  function createModal() {
-    if (document.getElementById('escape-settings-modal')) return;
-
-    const modal = document.createElement('div');
-    modal.id = 'escape-settings-modal';
-    modal.innerHTML = `
-      <div class="escape-settings-panel">
-        <div class="settings-header">
-          <span class="settings-title">⚙️ Escape Settings</span>
-          <button id="btn-close-escape-settings" class="settings-close-btn" type="button" title="Close Settings">✕</button>
-        </div>
-
-        <div class="settings-group">
-          <div class="settings-row">
-            <div class="settings-label-wrap">
-              <span class="settings-label">Show Mouse Pointer When Flying</span>
-              <span class="settings-sublabel">Display your advanced flight mouse🐭</span>
-            </div>
-            <div class="toggle-btn-group">
-              <button type="button" class="toggle-opt-btn" id="btn-mouse-yes">YES</button>
-              <button type="button" class="toggle-opt-btn" id="btn-mouse-no">NO</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="settings-group">
-          <div class="settings-row">
-            <div class="settings-label-wrap">
-              <span class="settings-label">Reset Best Score</span>
-              <span class="settings-sublabel">Clear saved high score records for Escape Mode</span>
-            </div>
-          </div>
-          <div class="reset-btn-row">
-            <button type="button" class="btn-reset-score" id="btn-reset-standard">Standard</button>
-            <button type="button" class="btn-reset-score" id="btn-reset-endless">Endless Mode</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    const stopProp = (e) => { e.stopPropagation(); };
-    ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove', 'touchend', 'mousedown', 'mousemove', 'mouseup', 'click'].forEach(evt => {
-      modal.addEventListener(evt, stopProp);
-    });
-
-    function updateModalUI() {
-      if (typeof escapeGame === 'undefined') return;
-      const isMouse = escapeGame.showMouse;
-      const btnYes = document.getElementById('btn-mouse-yes');
-      const btnNo = document.getElementById('btn-mouse-no');
-      if (btnYes && btnNo) {
-        btnYes.classList.toggle('active', isMouse);
-        btnNo.classList.toggle('active', !isMouse);
+  if (typeof escapeGame !== 'undefined') {
+    escapeGame.openSettingsModal = function () {
+      if (typeof window.openSettingsModal === 'function') {
+        window.openSettingsModal();
       }
-      const btnResetStd = document.getElementById('btn-reset-standard');
-      const btnResetEnd = document.getElementById('btn-reset-endless');
-      if (btnResetStd && !btnResetStd.classList.contains('reset-done')) {
-        btnResetStd.textContent = `Standard (${escapeGame.bestNormal})`;
-      }
-      if (btnResetEnd && !btnResetEnd.classList.contains('reset-done')) {
-        btnResetEnd.textContent = `Endless (${escapeGame.bestOverclocked})`;
-      }
-    }
-
-    const closeModal = () => {
-      modal.classList.remove('active');
     };
-
-    document.getElementById('btn-close-escape-settings').addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
-    });
-
-    document.getElementById('btn-mouse-yes').addEventListener('click', () => {
-      if (typeof escapeGame !== 'undefined') escapeGame.setShowMouse(true);
-      updateModalUI();
-    });
-
-    document.getElementById('btn-mouse-no').addEventListener('click', () => {
-      if (typeof escapeGame !== 'undefined') escapeGame.setShowMouse(false);
-      updateModalUI();
-    });
-
-    function flashResetDone(btn, originalText) {
-      btn.classList.add('reset-done');
-      btn.textContent = 'Reset! ✓';
-      setTimeout(() => {
-        btn.classList.remove('reset-done');
-        updateModalUI();
-      }, 1200);
-    }
-
-    document.getElementById('btn-reset-standard').addEventListener('click', function () {
-      if (typeof escapeGame !== 'undefined') {
-        escapeGame.resetBestScore('standard');
-        flashResetDone(this, `Standard (${escapeGame.bestNormal})`);
-      }
-    });
-
-    document.getElementById('btn-reset-endless').addEventListener('click', function () {
-      if (typeof escapeGame !== 'undefined') {
-        escapeGame.resetBestScore('endless');
-        flashResetDone(this, `Endless (${escapeGame.bestOverclocked})`);
-      }
-    });
-
-    if (typeof escapeGame !== 'undefined') {
-      escapeGame.updateSettingsModalUI = updateModalUI;
-      escapeGame.openSettingsModal = function () {
-        updateModalUI();
-        modal.classList.add('active');
-      };
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createModal);
-  } else {
-    createModal();
   }
 })();
