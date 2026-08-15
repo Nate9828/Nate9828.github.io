@@ -5,13 +5,13 @@
 /* ---------------------------------------------------------
    Utility
 --------------------------------------------------------- */
-const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
-const rand  = (a,b)=>a+Math.random()*(b-a);
-const randInt = (a,b)=>Math.floor(a+Math.random()*(b-a+1));
-const dist2 = (ax,ay,bx,by)=>{const dx=ax-bx,dy=ay-by; return dx*dx+dy*dy;};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+const dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
 
-function getComputedColor(varName){
-  if(varName.startsWith('--')) return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+function getComputedColor(varName) {
+  if (varName.startsWith('--')) return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
   return varName;
 }
 
@@ -45,7 +45,7 @@ function saveSecure(key, val) {
     const obfuscated = btoa(xorCipher(payload, SAVE_SALT));
     localStorage.setItem(key, obfuscated);
   } catch (e) {
-    try { localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : String(val)); } catch(err){}
+    try { localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : String(val)); } catch (err) { }
   }
 }
 
@@ -69,7 +69,7 @@ function loadSecure(key, defaultValue) {
           return dataStr;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Check if raw value is legacy unencoded
     if (typeof defaultValue === 'number') {
@@ -89,7 +89,7 @@ function loadSecure(key, defaultValue) {
         const obj = JSON.parse(raw);
         saveSecure(key, obj);
         return obj;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Tampered or invalid signature
@@ -103,20 +103,20 @@ function loadSecure(key, defaultValue) {
    Canvas + sizing
 --------------------------------------------------------- */
 const bgCanvas = document.getElementById('bg');
-const gCanvas  = document.getElementById('game');
+const gCanvas = document.getElementById('game');
 const bgCtx = bgCanvas.getContext('2d');
-const ctx   = gCanvas.getContext('2d');
+const ctx = gCanvas.getContext('2d');
 
-let W=0, H=0, DPR=1;
-function resize(){
+let W = 0, H = 0, DPR = 1;
+function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
-  [bgCanvas, gCanvas].forEach(c=>{
-    c.width = W*DPR; c.height = H*DPR;
-    c.style.width = W+'px'; c.style.height = H+'px';
+  [bgCanvas, gCanvas].forEach(c => {
+    c.width = W * DPR; c.height = H * DPR;
+    c.style.width = W + 'px'; c.style.height = H + 'px';
   });
-  bgCtx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+  bgCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   initStars();
   onResizeGameplay();
 }
@@ -125,90 +125,90 @@ function resize(){
    Starfield ambient background
 --------------------------------------------------------- */
 let stars = [];
-function initStars(){
+function initStars() {
   stars = [];
-  const count = Math.floor((W*H)/9000);
-  for(let i=0;i<count;i++){
+  const count = Math.floor((W * H) / 9000);
+  for (let i = 0; i < count; i++) {
     stars.push({
-      x: rand(0,W), y: rand(0,H),
-      r: rand(0.4,1.8),
-      tw: rand(0,Math.PI*2),
-      speed: rand(0.15,0.6)
+      x: rand(0, W), y: rand(0, H),
+      r: rand(0.4, 1.8),
+      tw: rand(0, Math.PI * 2),
+      speed: rand(0.15, 0.6)
     });
   }
 }
-function drawStars(dt, driftX, driftY){
-  bgCtx.clearRect(0,0,W,H);
+function drawStars(dt, driftX, driftY) {
+  bgCtx.clearRect(0, 0, W, H);
 
   let theme = 'default';
-  if(mode === 'escape' && typeof escapeGame !== 'undefined' && typeof escapeGame.getBgTheme === 'function'){
+  if (mode === 'escape' && typeof escapeGame !== 'undefined' && typeof escapeGame.getBgTheme === 'function') {
     theme = escapeGame.getBgTheme();
   }
 
-  if(theme === 'plasma'){
-    const g = bgCtx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.4, Math.max(W,H)*0.85);
+  if (theme === 'plasma') {
+    const g = bgCtx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.4, Math.max(W, H) * 0.85);
     g.addColorStop(0, 'rgba(147, 51, 234, 0.45)');
     g.addColorStop(0.5, 'rgba(79, 70, 229, 0.25)');
     g.addColorStop(1, 'rgba(5, 6, 14, 1)');
     bgCtx.fillStyle = g;
     bgCtx.fillRect(0, 0, W, H);
-  } else if(theme === 'cyber'){
+  } else if (theme === 'cyber') {
     bgCtx.fillStyle = '#030712';
     bgCtx.fillRect(0, 0, W, H);
     bgCtx.strokeStyle = 'rgba(0, 242, 254, 0.12)';
     bgCtx.lineWidth = 1;
     const step = 45;
-    for(let x = 0; x < W; x += step){
+    for (let x = 0; x < W; x += step) {
       bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, H); bgCtx.stroke();
     }
-    for(let y = 0; y < H; y += step){
+    for (let y = 0; y < H; y += step) {
       bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(W, y); bgCtx.stroke();
     }
-  } else if(theme === 'blackhole'){
+  } else if (theme === 'blackhole') {
     bgCtx.fillStyle = '#04020a';
     bgCtx.fillRect(0, 0, W, H);
     const bhX = W * 0.5, bhY = H * 0.35;
-    const g = bgCtx.createRadialGradient(bhX, bhY, 10, bhX, bhY, Math.max(W,H)*0.6);
+    const g = bgCtx.createRadialGradient(bhX, bhY, 10, bhX, bhY, Math.max(W, H) * 0.6);
     g.addColorStop(0, '#000000');
     g.addColorStop(0.12, 'rgba(168, 85, 247, 0.4)');
     g.addColorStop(0.35, 'rgba(79, 70, 229, 0.15)');
     g.addColorStop(1, 'rgba(4, 2, 10, 1)');
     bgCtx.fillStyle = g;
     bgCtx.fillRect(0, 0, W, H);
-  } else if(theme === 'cavern'){
+  } else if (theme === 'cavern') {
     bgCtx.fillStyle = '#160c04';
     bgCtx.fillRect(0, 0, W, H);
-    const g = bgCtx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.4, Math.max(W,H)*0.8);
+    const g = bgCtx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.4, Math.max(W, H) * 0.8);
     g.addColorStop(0, 'rgba(255, 140, 0, 0.35)');
     g.addColorStop(0.5, 'rgba(180, 50, 0, 0.18)');
     g.addColorStop(1, 'rgba(8, 4, 1, 1)');
     bgCtx.fillStyle = g;
     bgCtx.fillRect(0, 0, W, H);
-  } else if(theme === 'overclocked'){
-    const g = bgCtx.createRadialGradient(W*0.5, H*0.4, 0, W*0.5, H*0.4, Math.max(W,H)*0.8);
+  } else if (theme === 'overclocked') {
+    const g = bgCtx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.4, Math.max(W, H) * 0.8);
     g.addColorStop(0, 'rgba(255, 42, 109, 0.4)');
     g.addColorStop(1, 'rgba(10, 5, 20, 1)');
     bgCtx.fillStyle = g;
     bgCtx.fillRect(0, 0, W, H);
   } else {
-    const g = bgCtx.createRadialGradient(W*0.5,H*0.35,0, W*0.5,H*0.35, Math.max(W,H)*0.8);
-    g.addColorStop(0,'rgba(60,40,110,0.35)');
-    g.addColorStop(1,'rgba(5,6,14,0)');
+    const g = bgCtx.createRadialGradient(W * 0.5, H * 0.35, 0, W * 0.5, H * 0.35, Math.max(W, H) * 0.8);
+    g.addColorStop(0, 'rgba(60,40,110,0.35)');
+    g.addColorStop(1, 'rgba(5,6,14,0)');
     bgCtx.fillStyle = g;
-    bgCtx.fillRect(0,0,W,H);
+    bgCtx.fillRect(0, 0, W, H);
   }
 
-  for(const s of stars){
-    s.tw += dt*0.002;
-    s.x -= driftX*s.speed*dt*0.05;
-    s.y -= driftY*s.speed*dt*0.05;
-    if(s.x<0) s.x+=W; if(s.x>W) s.x-=W;
-    if(s.y<0) s.y+=H; if(s.y>H) s.y-=H;
-    const a = 0.4 + Math.sin(s.tw)*0.35;
-    bgCtx.globalAlpha = clamp(a,0.1,0.9);
+  for (const s of stars) {
+    s.tw += dt * 0.002;
+    s.x -= driftX * s.speed * dt * 0.05;
+    s.y -= driftY * s.speed * dt * 0.05;
+    if (s.x < 0) s.x += W; if (s.x > W) s.x -= W;
+    if (s.y < 0) s.y += H; if (s.y > H) s.y -= H;
+    const a = 0.4 + Math.sin(s.tw) * 0.35;
+    bgCtx.globalAlpha = clamp(a, 0.1, 0.9);
     bgCtx.fillStyle = theme === 'cyber' ? '#7dd3fc' : (theme === 'plasma' ? '#e9d5ff' : (theme === 'cavern' ? '#fed7aa' : '#cfe0ff'));
     bgCtx.beginPath();
-    bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    bgCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     bgCtx.fill();
   }
   bgCtx.globalAlpha = 1;
@@ -219,13 +219,13 @@ function drawStars(dt, driftX, driftY){
 --------------------------------------------------------- */
 const HUD_HEIGHT = 64;
 
-function getMode(){ return window.innerWidth >= window.innerHeight ? 'assault' : 'escape'; }
+function getMode() { return window.innerWidth >= window.innerHeight ? 'assault' : 'escape'; }
 let mode = getMode();
 
 /* ---------------------------------------------------------
    Input state (shared)
 --------------------------------------------------------- */
-const input = { x:null, y:null, down:false, keys:{}, mouseActive:true };
+const input = { x: null, y: null, down: false, keys: {}, mouseActive: true };
 
 function resetInputState() {
   input.down = false;
@@ -240,11 +240,11 @@ function resetInputState() {
   }
 }
 
-function pointerPos(e){
+function pointerPos(e) {
   const t = (e.touches && e.touches[0]) ? e.touches[0] : e;
   return { x: t.clientX, y: t.clientY };
 }
-function updateInputPos(e){
+function updateInputPos(e) {
   if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('#pause-modal') || e.target.closest('#game-settings-modal') || e.target.closest('.game-settings-modal') || e.target.closest('.top-actions'))) return;
   const p = pointerPos(e);
   if (mode === 'assault' && typeof assault !== 'undefined' && typeof assault.getViewport === 'function') {
@@ -261,51 +261,51 @@ function updateInputPos(e){
   }
   input.mouseActive = true; // Re-enable mouse tracking on pointer/touch movement
 }
-window.addEventListener('pointerdown', e=>{
+window.addEventListener('pointerdown', e => {
   if (isGamePaused) return;
   if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('#pause-modal') || e.target.closest('#game-settings-modal') || e.target.closest('.game-settings-modal') || e.target.closest('.top-actions'))) return;
   input.down = true;
   updateInputPos(e);
   onPress(e);
-}, {passive:true});
-window.addEventListener('pointermove', e=>{
+}, { passive: true });
+window.addEventListener('pointermove', e => {
   if (isGamePaused) return;
   updateInputPos(e);
-}, {passive:true});
-window.addEventListener('pointerup', ()=>{ input.down=false; }, {passive:true});
-window.addEventListener('pointercancel', ()=>{ input.down=false; }, {passive:true});
-window.addEventListener('mouseup', ()=>{ input.down=false; }, {passive:true});
+}, { passive: true });
+window.addEventListener('pointerup', () => { input.down = false; }, { passive: true });
+window.addEventListener('pointercancel', () => { input.down = false; }, { passive: true });
+window.addEventListener('mouseup', () => { input.down = false; }, { passive: true });
 
-window.addEventListener('touchstart', e=>{
+window.addEventListener('touchstart', e => {
   if (isGamePaused) return;
   if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('#pause-modal') || e.target.closest('#game-settings-modal') || e.target.closest('.game-settings-modal') || e.target.closest('.top-actions'))) return;
   input.down = true;
   updateInputPos(e);
   onPress(e);
-}, {passive:true});
-window.addEventListener('touchmove', e=>{
+}, { passive: true });
+window.addEventListener('touchmove', e => {
   if (isGamePaused) return;
   updateInputPos(e);
-}, {passive:true});
-window.addEventListener('touchend', ()=>{ input.down=false; }, {passive:true});
-window.addEventListener('touchcancel', ()=>{ input.down=false; }, {passive:true});
+}, { passive: true });
+window.addEventListener('touchend', () => { input.down = false; }, { passive: true });
+window.addEventListener('touchcancel', () => { input.down = false; }, { passive: true });
 
 window.addEventListener('blur', resetInputState);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) resetInputState();
 });
 
-window.addEventListener('keydown', e=>{
+window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
 
-  if((k === 'm' || e.code === 'KeyM') && !e.repeat){
-    if(typeof Sound !== 'undefined') {
+  if ((k === 'm' || e.code === 'KeyM') && !e.repeat) {
+    if (typeof Sound !== 'undefined') {
       Sound.toggleMute();
-      if(typeof updatePauseSoundUI === 'function') updatePauseSoundUI();
+      if (typeof updatePauseSoundUI === 'function') updatePauseSoundUI();
     }
   }
 
-  if((k === 'p' || e.code === 'KeyP' || k === 'escape' || e.code === 'Escape') && !e.repeat){
+  if ((k === 'p' || e.code === 'KeyP' || k === 'escape' || e.code === 'Escape') && !e.repeat) {
     toggleGamePause();
     return;
   }
@@ -313,38 +313,38 @@ window.addEventListener('keydown', e=>{
   if (isGamePaused) return;
 
   input.keys[k] = true;
-  if(k==='arrowleft'||k==='arrowright'||k==='arrowup'||k==='arrowdown'||k==='a'||k==='d'||k==='w'||k==='s'){
+  if (k === 'arrowleft' || k === 'arrowright' || k === 'arrowup' || k === 'arrowdown' || k === 'a' || k === 'd' || k === 'w' || k === 's') {
     input.mouseActive = false; // Disable mouse tracking when keyboard keys are pressed
   }
-  if(e.key === ' ' || e.key === 'Spacebar') onPress(e);
+  if (e.key === ' ' || e.key === 'Spacebar') onPress(e);
 
-  if(mode === 'assault' && typeof assault !== 'undefined' && assault.state === 'playing' && !e.repeat){
-    if(e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1'){
+  if (mode === 'assault' && typeof assault !== 'undefined' && assault.state === 'playing' && !e.repeat) {
+    if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
       assault.buyUpgrade('rate');
-    } else if(e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2'){
+    } else if (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2') {
       assault.buyUpgrade('spread');
-    } else if(e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3'){
+    } else if (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3') {
       assault.buyUpgrade('laser');
-    } else if(e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4'){
+    } else if (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4') {
       assault.buyUpgrade('pulse_turrets');
     }
   }
-}, {passive:true});
-window.addEventListener('keyup', e=>{
+}, { passive: true });
+window.addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
   input.keys[k] = false;
   delete input.keys[k];
-}, {passive:true});
+}, { passive: true });
 
 let lastPressTime = 0;
-function onPress(e){
+function onPress(e) {
   if (isGamePaused) return;
   if (e && e.target && e.target.closest && (e.target.closest('#hud') || e.target.closest('.top-actions'))) return;
-  if(overlay && !overlay.classList.contains('hidden')) return;
+  if (overlay && !overlay.classList.contains('hidden')) return;
   const now = performance.now();
-  if(now - lastPressTime < 80) return;
+  if (now - lastPressTime < 80) return;
   lastPressTime = now;
-  if(mode === 'assault' && typeof assault !== 'undefined' && assault.state === 'playing'){
+  if (mode === 'assault' && typeof assault !== 'undefined' && assault.state === 'playing') {
     assault.shoot();
   }
 }
@@ -359,25 +359,25 @@ const controlsHint = document.getElementById('controls-hint');
 const overlay = document.getElementById('overlay');
 const panel = document.getElementById('panel');
 
-function heartsHTML(lives,max){
-  let h='';
-  for(let i=0;i<max;i++){
-    const on = i<lives;
-    h += `<div class="heart ${on?'on':''}"><svg viewBox="0 0 24 24" fill="${on?'var(--player)':'rgba(255,255,255,0.15)'}"><path d="M12 21s-7.5-4.6-10-9.2C.5 8 2.4 4.5 6 4.5c2 0 3.5 1.1 4.3 2.6.8-1.5 2.3-2.6 4.3-2.6 3.6 0 5.5 3.5 4 7.3C19.5 16.4 12 21 12 21z"/></svg></div>`;
+function heartsHTML(lives, max) {
+  let h = '';
+  for (let i = 0; i < max; i++) {
+    const on = i < lives;
+    h += `<div class="heart ${on ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="${on ? 'var(--player)' : 'rgba(255,255,255,0.15)'}"><path d="M12 21s-7.5-4.6-10-9.2C.5 8 2.4 4.5 6 4.5c2 0 3.5 1.1 4.3 2.6.8-1.5 2.3-2.6 4.3-2.6 3.6 0 5.5 3.5 4 7.3C19.5 16.4 12 21 12 21z"/></svg></div>`;
   }
   return h;
 }
 
-function renderHUD(){
-  if(mode==='escape'){
+function renderHUD() {
+  if (mode === 'escape') {
     const z = (typeof escapeGame !== 'undefined' && typeof escapeGame.getZoneConfig === 'function') ? escapeGame.getZoneConfig() : { badge: 'ZONE 1', name: 'Asteroid Belt' };
     hudLeft.innerHTML = `
       <div class="hud-chip"><span class="hud-label" id="escape-obj-lbl">DISTANCE</span><span class="hud-value" id="escape-obj-val">5000m</span></div>
-      <div class="hud-chip"><span class="hud-label">Score</span><span class="hud-value" id="hv-score">${escapeGame.score||0}</span></div>
+      <div class="hud-chip"><span class="hud-label">Score</span><span class="hud-value" id="hv-score">${escapeGame.score || 0}</span></div>
     `;
-    if(hudCenter){
+    if (hudCenter) {
       hudCenter.innerHTML = `
-        <div class="hud-chip"><span id="hearts">${heartsHTML(escapeGame.lives||3, escapeGame.maxLives||3)}</span></div>
+        <div class="hud-chip"><span id="hearts">${heartsHTML(escapeGame.lives || 3, escapeGame.maxLives || 3)}</span></div>
       `;
     }
     modeTag.textContent = `${z.badge}: ${z.name}`;
@@ -386,12 +386,12 @@ function renderHUD(){
     modeTag.id = 'escape-zone-tag';
     controlsHint.textContent = 'Move mouse/finger to steer, or use WASD / Arrows (No Shooting - Evade Hazards!)';
   } else {
-    if(hudCenter) hudCenter.innerHTML = '';
+    if (hudCenter) hudCenter.innerHTML = '';
     const diffLabel = assault.selectedDifficulty === 'hard' ? ' (HARD)' : (assault.selectedDifficulty === 'endless' ? ' (ENDLESS)' : '');
     hudLeft.innerHTML = `
       <div class="hud-stats-stack" id="hud-stats-stack">
         <div class="hud-chip" id="hud-wave-chip" style="position:relative;"><span class="hud-label">Wave</span><span class="hud-value" id="hv-wave">${assault.wave} / ${assault.totalWaves === Infinity ? '∞' : assault.totalWaves}</span></div>
-        <div class="hud-chip" id="hud-points-chip"><span class="hud-label">Points</span><span class="hud-value" id="hv-points">${assault.points||0}</span></div>
+        <div class="hud-chip" id="hud-points-chip"><span class="hud-label">Points</span><span class="hud-value" id="hv-points">${assault.points || 0}</span></div>
       </div>
       <div class="hud-chip"><span class="hud-label">Base</span><div id="healthbar-wrap"><div id="healthbar" style="width:${clamp((assault.health / (assault.maxHealth || 100)) * 100, 0, 100)}%"></div></div></div>
       <div class="upgrade-bar" id="upgrade-bar"></div>
@@ -405,7 +405,7 @@ function renderHUD(){
       modeTag.style.display = 'none';
     }
     controlsHint.textContent = (assault.selectedDifficulty === 'endless' && assault.wave > 9) ? 'Hold click/touch to steer & fire. Keys 1-4 for upgrades & pulse turrets' : 'Hold click/touch to steer & fire. Keys 1-3 for upgrades';
-    if(typeof renderUpgradesHTML === 'function') renderUpgradesHTML();
+    if (typeof renderUpgradesHTML === 'function') renderUpgradesHTML();
   }
 }
 
@@ -419,9 +419,9 @@ function setAssaultUnlock(key) {
   saveSecure('nova_assault_unlocks', curr);
 }
 
-function gateSVG(m){
-  const rot = m==='escape' ? 0 : 90;
-  const color = m==='escape' ? 'var(--hazard)' : 'var(--energy)';
+function gateSVG(m) {
+  const rot = m === 'escape' ? 0 : 90;
+  const color = m === 'escape' ? 'var(--hazard)' : 'var(--energy)';
   return `
     <svg viewBox="0 0 120 120" style="transform:rotate(${rot}deg)">
       <g class="ring">
@@ -437,13 +437,13 @@ function gateSVG(m){
 
 function requestFullscreenMode() {
   const isMobileTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
-                        (window.innerWidth <= 1024 || window.innerHeight <= 600);
+    (window.innerWidth <= 1024 || window.innerHeight <= 600);
   if (!isMobileTouch) return;
 
   const doc = document.documentElement;
   if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
     const rfs = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.msRequestFullscreen;
-    if (rfs) rfs.call(doc).catch(() => {});
+    if (rfs) rfs.call(doc).catch(() => { });
   }
 }
 
@@ -452,14 +452,14 @@ function toggleFullscreen() {
   if (!isFS) {
     const doc = document.documentElement;
     const rfs = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.msRequestFullscreen;
-    if (rfs) rfs.call(doc).catch(() => {});
+    if (rfs) rfs.call(doc).catch(() => { });
   } else {
     const efs = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-    if (efs) efs.call(document).catch(() => {});
+    if (efs) efs.call(document).catch(() => { });
   }
 }
 
-function showStart(){
+function showStart() {
   if (isGamePaused) resumeGame();
   if (typeof Sound !== 'undefined') Sound.fadeOutBGM(400);
 
@@ -523,14 +523,14 @@ function showStart(){
     <h1 class="title">NOVA SHIFT</h1>
     <p class="subtitle">One world. The goal depends on how you hold it.</p>
     <div id="gate">${gateSVG(m)}</div>
-    <h2 class="mode-heading ${m}">${m==='escape' ? 'Escape Mode' : 'Assault Mode'}</h2>
-    ${ m==='escape'
+    <h2 class="mode-heading ${m}">${m === 'escape' ? 'Escape Mode' : 'Assault Mode'}</h2>
+    ${m === 'escape'
       ? `<p class="desc">${(typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) ? '⚡ <b>Endless Overclocked Mode</b>: Maximum speed, unrelenting hazard chaos. Test your steering reflexes and survive as long as possible!' : 'High-speed evasive piloting. Navigate through increasingly intense hazardous sectors, adapt to shifting space anomalies, and escape into hypergate warps.'}</p>${escapeHTML}`
       : `<p class="desc">Tactical base defense. Eliminate incoming enemy armadas, upgrade your ship weapons, and defend your core against boss flagships.</p>${diffHTML}`
     }
     <div class="rotate-hint">⟳ Rotate your device to switch objectives entirely</div>
     <div class="start-btn-row">
-      <button id="btn-start" style="flex:1;">${m==='escape' ? ((typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) ? '⚡ Launch Overclocked' : 'Start Run') : 'Launch Defense'}</button>
+      <button id="btn-start" style="flex:1;">${m === 'escape' ? ((typeof escapeGame !== 'undefined' && escapeGame.isOverclockedMode) ? '⚡ Launch Overclocked' : 'Start Run') : 'Launch Defense'}</button>
       <button type="button" id="btn-main-settings" class="btn-settings-cog" title="Audio & Game Settings">⚙️</button>
     </div>
   `;
@@ -608,7 +608,7 @@ function showStart(){
   }
 
   overlay.classList.remove('hidden');
-  document.getElementById('btn-start').addEventListener('click', ()=>{
+  document.getElementById('btn-start').addEventListener('click', () => {
     if (typeof Sound !== 'undefined') Sound.play('uiClick');
     requestFullscreenMode();
     overlay.classList.add('hidden');
@@ -660,43 +660,43 @@ window.removeWaveAnnouncement = removeWaveAnnouncement;
 /* ---------------------------------------------------------
    Shared particle helpers
 --------------------------------------------------------- */
-function spark(x,y,color){
-  return { x,y, vx:rand(-160,160), vy:rand(-160,160), life:rand(280,520), maxLife:520, color };
+function spark(x, y, color) {
+  return { x, y, vx: rand(-160, 160), vy: rand(-160, 160), life: rand(280, 520), maxLife: 520, color };
 }
-function updateParticles(arr,dt){
-  for(const p of arr){ p.x+=p.vx*dt/1000; p.y+=p.vy*dt/1000; p.life-=dt; p.vx*=0.94; p.vy*=0.94; }
-  for(let i=arr.length-1;i>=0;i--) if(arr[i].life<=0) arr.splice(i,1);
+function updateParticles(arr, dt) {
+  for (const p of arr) { p.x += p.vx * dt / 1000; p.y += p.vy * dt / 1000; p.life -= dt; p.vx *= 0.94; p.vy *= 0.94; }
+  for (let i = arr.length - 1; i >= 0; i--) if (arr[i].life <= 0) arr.splice(i, 1);
 }
-function drawParticles(ctx,arr){
-  for(const p of arr){
-    const a = clamp(p.life/p.maxLife,0,1);
+function drawParticles(ctx, arr) {
+  for (const p of arr) {
+    const a = clamp(p.life / p.maxLife, 0, 1);
     ctx.globalAlpha = a;
-    ctx.fillStyle = getComputedColor(p.color.replace('var(','').replace(')',''));
-    ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = getComputedColor(p.color.replace('var(', '').replace(')', ''));
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.globalAlpha=1;
+  ctx.globalAlpha = 1;
 }
 
 /* ---------------------------------------------------------
    Resize handling / mode switching
 --------------------------------------------------------- */
-function onResizeGameplay(){
+function onResizeGameplay() {
   initStars();
-  if(typeof escapeGame !== 'undefined' && escapeGame.player && typeof escapeGame.getViewport === 'function') {
+  if (typeof escapeGame !== 'undefined' && escapeGame.player && typeof escapeGame.getViewport === 'function') {
     const vp = escapeGame.getViewport();
     escapeGame.player.y = vp.vh - Math.max(90, vp.vh * 0.14);
   }
-  if(typeof assault !== 'undefined' && assault.turret) assault.turret.x = Math.max(70, assault.vw * 0.09);
+  if (typeof assault !== 'undefined' && assault.turret) assault.turret.x = Math.max(70, assault.vw * 0.09);
 }
 
 let lastMode = mode;
-function checkOrientation(){
+function checkOrientation() {
   const m = getMode();
-  if(m!==mode){
+  if (m !== mode) {
     mode = m;
     lastMode = m;
-    const active = mode==='escape' ? escapeGame : assault;
-    if(active.state==='playing'){
+    const active = mode === 'escape' ? escapeGame : assault;
+    if (active.state === 'playing') {
       overlay.classList.add('hidden');
     } else {
       showStart();
@@ -705,8 +705,8 @@ function checkOrientation(){
   }
 }
 
-window.addEventListener('resize', ()=>{ resize(); checkOrientation(); });
-window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ resize(); checkOrientation(); }, 60); });
+window.addEventListener('resize', () => { resize(); checkOrientation(); });
+window.addEventListener('orientationchange', () => { setTimeout(() => { resize(); checkOrientation(); }, 60); });
 
 /* ---------------------------------------------------------
    Main loop & Boot initialization
@@ -714,22 +714,22 @@ window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ resize(); ch
 let last = performance.now();
 let isGamePaused = false;
 
-function loop(now){
-  const dt = Math.min(now-last, 42);
+function loop(now) {
+  const dt = Math.min(now - last, 42);
   last = now;
 
-  const driftX = (!isGamePaused && mode==='escape') ? (escapeGame.player?.vx||0)*0.02 : 0;
-  const driftY = (!isGamePaused && mode==='assault') ? (assault.turret?.vy||0)*0.02 : 0;
+  const driftX = (!isGamePaused && mode === 'escape') ? (escapeGame.player?.vx || 0) * 0.02 : 0;
+  const driftY = (!isGamePaused && mode === 'assault') ? (assault.turret?.vy || 0) * 0.02 : 0;
   drawStars(dt, driftX, driftY);
 
-  ctx.clearRect(0,0,W,H);
-  if(mode==='escape'){
-    if(!isGamePaused){
+  ctx.clearRect(0, 0, W, H);
+  if (mode === 'escape') {
+    if (!isGamePaused) {
       escapeGame.update(dt);
     }
     escapeGame.draw();
   } else {
-    if(!isGamePaused){
+    if (!isGamePaused) {
       assault.update(dt);
     }
     assault.draw();
@@ -816,7 +816,7 @@ function createSettingsModal() {
           </div>
         </div>
         <div class="reset-btn-row">
-          <button type="button" class="btn-reset-score" id="btn-reset-escape-std">Escape Std</button>
+          <button type="button" class="btn-reset-score" id="btn-reset-escape-std">Escape Standard</button>
           <button type="button" class="btn-reset-score" id="btn-reset-escape-end">Escape Endless</button>
           <button type="button" class="btn-reset-score" id="btn-reset-assault-end">Assault Endless</button>
         </div>
@@ -865,10 +865,10 @@ function createSettingsModal() {
       const btnResetStd = document.getElementById('btn-reset-escape-std');
       const btnResetEnd = document.getElementById('btn-reset-escape-end');
       if (btnResetStd && !btnResetStd.classList.contains('reset-done')) {
-        btnResetStd.textContent = `Escape Std (${escapeGame.bestNormal || 0})`;
+        btnResetStd.textContent = `Escape Standard (${escapeGame.bestNormal || 0})`;
       }
       if (btnResetEnd && !btnResetEnd.classList.contains('reset-done')) {
-        btnResetEnd.textContent = `Escape End (${escapeGame.bestOverclocked || 0})`;
+        btnResetEnd.textContent = `Escape Endless (${escapeGame.bestOverclocked || 0})`;
       }
     }
 
@@ -876,7 +876,7 @@ function createSettingsModal() {
       const btnResetAssault = document.getElementById('btn-reset-assault-end');
       if (btnResetAssault && !btnResetAssault.classList.contains('reset-done')) {
         const highest = typeof assault.getHighestEndlessWave === 'function' ? assault.getHighestEndlessWave() : (assault.highestEndlessWave || 0);
-        btnResetAssault.textContent = `Assault End (W${highest})`;
+        btnResetAssault.textContent = `Assault Endless (W${highest})`;
       }
     }
   }
@@ -1180,7 +1180,7 @@ function hidePauseModal() {
   if (modal) modal.classList.remove('active');
 }
 
-function initGame(){
+function initGame() {
   resize();
   createSettingsModal();
   createPauseModal();

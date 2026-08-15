@@ -1245,6 +1245,12 @@ button.btn-secondary:hover {
   width: 100%;
 }
 
+@media (max-width:525px) {
+  .pause-btn-row-dual {
+    flex-direction: column;
+  }
+}
+
 .pause-btn-row-dual .pause-btn {
   flex: 1;
 }
