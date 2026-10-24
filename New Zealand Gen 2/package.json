@@ -1,0 +1,18 @@
+{
+  "name": "vite-temp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "pixi-viewport": "^6.0.3",
+    "pixi.js": "^8.20.1"
+  }
+}

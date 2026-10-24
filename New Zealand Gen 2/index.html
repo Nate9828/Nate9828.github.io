@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aotearoa: Generations</title>
+    <!-- Google Fonts for Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <!-- The PixiJS Canvas will be appended to this container -->
+    <div id="game-canvas-container"></div>
+    
+    <!-- Glassmorphism UI Panel -->
+    <div id="ui-panel" class="glass-panel">
+      <header>
+        <h1>Aotearoa</h1>
+        <p class="subtitle">Generations</p>
+      </header>
+      
+      <div class="resources-section">
+        <h3>Resources</h3>
+        <div class="resource-item">
+          <span>👥 Population</span>
+          <span id="res-population">0/10</span>
+        </div>
+        <div class="resource-item">
+          <span>🍠 Kai (Food)</span>
+          <span id="res-kai">0</span>
+        </div>
+        <div class="resource-item">
+          <span>🪵 Rākau (Timber)</span>
+          <span id="res-rakau">0</span>
+        </div>
+      </div>
+
+      <div class="workers-section">
+        <h3>Villager Assignments</h3>
+        <div class="worker-item">
+          <span>Idle</span>
+          <span id="workers-idle">0</span>
+        </div>
+        <div class="worker-item">
+          <span>Gatherers (Rākau)</span>
+          <div class="worker-controls">
+            <button id="btn-unassign-gatherer">-</button>
+            <span id="workers-gatherer">0</span>
+            <button id="btn-assign-gatherer">+</button>
+          </div>
+        </div>
+        <div class="worker-item">
+          <span>Farmers (Kai)</span>
+          <div class="worker-controls">
+            <button id="btn-unassign-farmer">-</button>
+            <span id="workers-farmer">0</span>
+            <button id="btn-assign-farmer">+</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="actions-section">
+        <h3>Actions</h3>
+        <button id="btn-build-whare" class="action-btn">
+          Build Whare (10 Rākau)
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

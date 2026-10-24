@@ -1,0 +1,33 @@
+{
+    "activeFile": "src/game/maps/coastal.json",
+    "expandedProjectPaths": [
+        ".",
+        "src",
+        "src/game/maps",
+        "src/game"
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
+    "fileStates": {
+        "src/game/maps/coastal.json": {
+            "scale": 0.75,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 7140.666666666666,
+                "y": 481.33333333333337
+            }
+        },
+        "src/game/maps/coastal.json#Placeholder": {
+            "scaleInDock": 1
+        },
+        "src/game/maps/terrain.tsx": {
+            "scaleInDock": 0.33
+        }
+    },
+    "openFiles": [
+        "src/game/maps/coastal.json"
+    ],
+    "project": "New Zealand Generation.tiled-project",
+    "recentFiles": [
+        "src/game/maps/coastal.json"
+    ]
+}

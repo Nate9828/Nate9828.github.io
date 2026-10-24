@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aotearoa: Generations — Isometric Settlement Game</title>
+  <!-- Load PixiJS 2D from cdnjs as specified in the design doc -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app-layout">
+    <!-- Center/Left PixiJS Isometric Scene -->
+    <div id="scene-wrapper">
+      <div id="pixi-canvas-container"></div>
+
+      <!-- Top Resource & Controls HUD -->
+      <div id="top-hud">
+        <div class="hud-pill">
+          <div class="brand-block">
+            <span class="brand-title">Aotearoa: Generations</span>
+            <span class="brand-era" id="hud-era-label">Chapter 1 — Founding &amp; Kāinga</span>
+          </div>
+          <div class="res-list" id="hud-resources">
+            <!-- Dynamically populated resource pills -->
+          </div>
+        </div>
+
+        <div class="hud-pill hud-controls">
+          <button class="ctrl-btn active" id="btn-speed-1" onclick="Game.setSpeed(1)" title="Authentic multi-week real-time pacing">1× Pace</button>
+          <button class="ctrl-btn" id="btn-speed-10" onclick="Game.setSpeed(10)" title="10x faster session speed">10×</button>
+          <button class="ctrl-btn" id="btn-speed-60" onclick="Game.setSpeed(60)" title="60x playtest speed">60×</button>
+          <button class="ctrl-btn" id="btn-sim-offline" onclick="Game.simulateOfflineHours(2)" title="Simulate returning after 2 hours away">⏩ +2h Idle</button>
+          <button class="ctrl-btn" id="btn-daynight" onclick="Game.toggleDayNight()" title="Cycle Day / Dusk / Starlight">🌤️ Sky</button>
+          <button class="ctrl-btn" id="btn-audio" onclick="Game.toggleAudio()" title="Toggle ambient ocean &amp; chimes">🔇 Audio</button>
+          <button class="ctrl-btn" id="btn-photo" onclick="Game.togglePhotoMode()" title="Hide UI for screenshot / Photo Mode">📷 Photo</button>
+        </div>
+      </div>
+
+      <!-- Dismissible Event & Story Beat Banner -->
+      <div id="event-banner-container"></div>
+
+      <!-- Photo Mode Exit & Screenshot Bar -->
+      <div id="photo-mode-bar">
+        <button class="ctrl-btn active" onclick="Game.downloadScreenshot()">💾 Save PNG</button>
+        <button class="ctrl-btn" onclick="Game.togglePhotoMode()">✕ Exit Photo Mode</button>
+      </div>
+      <div id="photo-caption">
+        <div style="font-family: var(--font-serif); font-size: 1.15rem; color: var(--accent-kowhai); font-weight:700;">Aotearoa: Generations</div>
+        <div id="photo-caption-sub" style="font-size: 0.8rem; color: var(--text-cream);">One continuous landscape across generations</div>
+      </div>
+
+      <!-- Bottom Scene Inspector & Camera Zoom -->
+      <div id="bottom-scene-hud">
+        <div id="tile-inspector">
+          <div class="ti-title">
+            <span id="ti-name">Te Moana &amp; Te Whenua</span>
+            <span id="ti-coords" style="color: var(--text-muted); font-weight:400;">Grid (12, 12)</span>
+          </div>
+          <div class="ti-sub" id="ti-desc">Hover or tap any isometric tile to inspect the land, kāinga, or township buildings. Drag to pan, scroll to zoom.</div>
+        </div>
+
+        <div id="camera-controls">
+          <button class="ctrl-btn" onclick="Game.zoomCamera(1.18)" title="Zoom In">＋</button>
+          <button class="ctrl-btn" onclick="Game.zoomCamera(0.85)" title="Zoom Out">－</button>
+          <button class="ctrl-btn" onclick="Game.resetCamera()" title="Center Peninsula">🎯 Center</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right UI Overlay Panel -->
+    <aside id="side-panel">
+      <div id="milestone-header">
+        <div class="mh-top">
+          <span class="mh-title" id="mh-era-goal">Settlement Growth</span>
+          <span class="mh-pct" id="mh-progress-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="mh-progress-bar"></div>
+        </div>
+        <div class="mh-next">
+          <span id="mh-next-text">Next Milestone: Reach 12 Population</span>
+          <span id="mh-whenua-badge" style="color: var(--accent-kowhai); font-weight:600;">Whenua: 36/413 tiles</span>
+        </div>
+      </div>
+
+      <nav id="panel-tabs">
+        <button class="tab-btn active" data-tab="actions" onclick="Game.switchTab('actions')">⚡ Tasks</button>
+        <button class="tab-btn" data-tab="build" onclick="Game.switchTab('build')">🛖 Build</button>
+        <button class="tab-btn" data-tab="villagers" onclick="Game.switchTab('villagers')">👥 Tangata</button>
+        <button class="tab-btn" data-tab="chronicle" onclick="Game.switchTab('chronicle')">📜 Chronicle</button>
+      </nav>
+
+      <div id="panel-content">
+        <!-- Rendered dynamically by UI module -->
+      </div>
+
+      <div id="panel-footer">
+        <span id="autosave-status">Saved to browser storage</span>
+        <div style="display:flex; gap:8px;">
+          <button class="ctrl-btn" style="padding:3px 8px; font-size:0.68rem;" onclick="Game.saveState(true)">💾 Save</button>
+          <button class="ctrl-btn" style="padding:3px 8px; font-size:0.68rem; color:#f28b82;" onclick="Game.confirmReset()">↺ Reset</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- "While You Were Away" & Major Event Modal -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal-box" id="modal-box">
+      <h2 id="modal-title">While You Were Away</h2>
+      <p id="modal-body">Time passed peacefully across the settlement.</p>
+      <div class="offline-gains-grid" id="modal-gains"></div>
+      <button class="action-btn" onclick="Game.closeModal()">Continue</button>
+    </div>
+  </div>
+
+  <!-- Modular Game Architecture -->
+  <script src="js/pixi-shim.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
