@@ -721,3 +721,317 @@
         border-top: 1.5px solid var(--border-warm);
       }
     }
+
+    /* Interactive Task Mini-Game Styles */
+    .minigame-trigger-btn {
+      background: linear-gradient(135deg, rgba(60, 163, 130, 0.28), rgba(232, 185, 72, 0.25)) !important;
+      border-color: var(--accent-kowhai) !important;
+      color: var(--accent-kowhai) !important;
+    }
+    .minigame-trigger-btn:hover {
+      background: linear-gradient(135deg, rgba(60, 163, 130, 0.48), rgba(232, 185, 72, 0.42)) !important;
+    }
+
+    .minigame-box {
+      max-width: 540px;
+    }
+    .mg-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .mg-instructions {
+      font-size: 0.82rem !important;
+      color: var(--text-muted) !important;
+    }
+    .mg-hud {
+      display: flex;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-warm);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+    .mg-stat strong {
+      color: var(--accent-kowhai);
+      font-variant-numeric: tabular-nums;
+    }
+    .mg-arena {
+      min-height: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: rgba(12, 22, 27, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .mg-mound-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .mg-mound-btn {
+      background: rgba(42, 32, 24, 0.85);
+      border: 1.5px solid rgba(212, 178, 124, 0.28);
+      border-radius: 10px;
+      padding: 10px 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-cream);
+      transition: transform 0.1s ease, border-color 0.15s ease;
+    }
+    .mg-mound-btn:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-kowhai);
+    }
+    .mg-mound-btn.kumara {
+      background: rgba(232, 185, 72, 0.22);
+      border-color: var(--accent-kowhai);
+      box-shadow: 0 0 12px rgba(232, 185, 72, 0.3);
+    }
+    .mg-mound-btn.weed {
+      background: rgba(60, 163, 130, 0.22);
+      border-color: var(--accent-pounamu-bright);
+    }
+    .mg-mound-icon {
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+    .mg-mound-lbl {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .mg-gauge-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+    .mg-gauge-track {
+      position: relative;
+      height: 40px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1.5px solid var(--border-warm);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .mg-gauge-zone-good {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(60, 163, 130, 0.35);
+      border-left: 1px dashed var(--accent-pounamu-bright);
+      border-right: 1px dashed var(--accent-pounamu-bright);
+    }
+    .mg-gauge-zone-gold {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(232, 185, 72, 0.48);
+      border-left: 2px solid var(--accent-kowhai);
+      border-right: 2px solid var(--accent-kowhai);
+    }
+    .mg-gauge-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.45rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+      pointer-events: none;
+    }
+    .mg-feedback {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--accent-pounamu-bright);
+      font-weight: 600;
+      min-height: 1.2em;
+    }
+    .mg-result-box {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 6px;
+    }
+    .mg-result-box h3 {
+      color: var(--accent-kowhai);
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+    }
+
+    #mg-fish-good, #mg-fish-gold, #mg-chop-good, #mg-chop-gold {
+      transition: left 0.14s ease-out, width 0.14s ease-out;
+      will-change: left, width;
+    }
+    #mg-wind-zone {
+      transition: width 0.18s ease-out;
+      will-change: left, width;
+    }
+    .mg-gauge-marker {
+      transform: translate3d(-50%, -50%, 0);
+      will-change: left;
+    }
+
+    .card-desc strong {
+      color: var(--text-cream);
+      font-weight: 700;
+    }
+
+
+    body.photo-mode #toast-container {
+      display: none !important;
+    }
+
+    /* Top-Center Completion Toasts (Below HUD Pills) & Target Glow */
+    #toast-container {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 48;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      width: min(440px, 90%);
+    }
+
+    .completion-toast {
+      pointer-events: auto;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(16, 28, 35, 0.95), rgba(32, 48, 52, 0.95));
+      border: 1.5px solid var(--accent-kowhai);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 16px rgba(232, 185, 72, 0.35);
+      backdrop-filter: blur(10px);
+      animation: toastSlideDown 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+
+    .completion-toast:hover {
+      transform: translateY(-2px) scale(1.015);
+      border-color: var(--accent-pounamu-bright);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75), 0 0 22px rgba(82, 199, 161, 0.55);
+    }
+
+    .completion-toast.toast-out {
+      animation: toastFadeUp 0.25s ease forwards;
+      pointer-events: none;
+    }
+
+    .completion-toast-icon {
+      font-size: 1.35rem;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(232, 185, 72, 0.18);
+      border: 1px solid rgba(232, 185, 72, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .completion-toast-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .completion-toast-title {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--accent-kowhai);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .completion-toast-sub {
+      font-size: 0.72rem;
+      color: var(--text-cream);
+      opacity: 0.9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .completion-toast-close {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-muted);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 0.72rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .completion-toast-close:hover {
+      background: rgba(217, 99, 70, 0.35);
+      color: #fff;
+      border-color: var(--accent-terracotta);
+    }
+
+    @keyframes toastSlideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes toastFadeUp {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.95);
+      }
+    }
+
+    @keyframes targetCardGlowPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(232, 185, 72, 0.9), 0 0 24px rgba(82, 199, 161, 0.85);
+        border-color: var(--accent-kowhai);
+      }
+      50% {
+        box-shadow: 0 0 0 5px rgba(82, 199, 161, 0.45), 0 0 32px rgba(232, 185, 72, 0.95);
+        border-color: var(--accent-pounamu-bright);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(232, 185, 72, 0), 0 0 0 rgba(82, 199, 161, 0);
+      }
+    }
+
+    .toast-target-glow {
+      animation: targetCardGlowPulse 1.15s ease-in-out 3 !important;
+      border-color: var(--accent-kowhai) !important;
+    }

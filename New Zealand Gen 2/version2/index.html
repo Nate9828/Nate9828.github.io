@@ -37,6 +37,9 @@
         </div>
       </div>
 
+      <!-- Top-Center Completion Toasts (Below HUD Pills) -->
+      <div id="toast-container"></div>
+
       <!-- Dismissible Event & Story Beat Banner -->
       <div id="event-banner-container"></div>
 
@@ -79,8 +82,8 @@
           <div class="progress-fill" id="mh-progress-bar"></div>
         </div>
         <div class="mh-next">
-          <span id="mh-next-text">Next Milestone: Reach 12 Population</span>
-          <span id="mh-whenua-badge" style="color: var(--accent-kowhai); font-weight:600;">Whenua: 36/413 tiles</span>
+          <span id="mh-next-text">Next Milestone: Reach 10 Population</span>
+          <span id="mh-whenua-badge" style="color: var(--accent-kowhai); font-weight:600;">Whenua: 28/413 tiles</span>
         </div>
       </div>
 
@@ -112,6 +115,22 @@
       <p id="modal-body">Time passed peacefully across the settlement.</p>
       <div class="offline-gains-grid" id="modal-gains"></div>
       <button class="action-btn" onclick="Game.closeModal()">Continue</button>
+    </div>
+  </div>
+
+  <!-- Interactive Task Mini-Game Modal -->
+  <div class="modal-backdrop" id="minigame-modal-backdrop">
+    <div class="modal-box minigame-box">
+      <div class="mg-header">
+        <h2 id="mg-title">Task Mini-Game</h2>
+        <button class="event-dismiss" onclick="Game.closeTaskMiniGame(true)">✕ Close</button>
+      </div>
+      <p id="mg-instructions" class="mg-instructions">Play to skip up to 70% of the timer and earn up to 2.5× resources!</p>
+      <div class="mg-hud">
+        <div class="mg-stat">🎯 Score: <strong id="mg-score-val">0 / 100</strong></div>
+        <div class="mg-stat">⏱️ Time Left: <strong id="mg-time-val">12.0s</strong></div>
+      </div>
+      <div id="mg-arena" class="mg-arena"></div>
     </div>
   </div>
 

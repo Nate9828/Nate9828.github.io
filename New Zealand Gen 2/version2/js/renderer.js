@@ -68,15 +68,16 @@ const GameRenderer = {
         this.resetCamera();
         this.bindCanvasInteractions();
 
-        // Spawn ambient animated villagers walking between kāinga and township
-        for (let i = 0; i < 12; i++) {
+        // Spawn pool of animated unit sprites (up to 28 visible on map)
+        for (let i = 0; i < 28; i++) {
           this.villagerSprites.push({
-            col: 7.5 + Math.random() * 5,
-            row: 13.5 + Math.random() * 3,
-            targetCol: 8 + Math.random() * 6,
-            targetRow: 12 + Math.random() * 5,
-            speed: 0.4 + Math.random() * 0.35,
-            color: i % 2 === 0 ? 0xc86446 : 0xe8b948
+            col: 8 + (Math.random() - 0.5) * 2.5,
+            row: 15 + (Math.random() - 0.5) * 2.5,
+            targetCol: 8 + Math.random() * 3,
+            targetRow: 14 + Math.random() * 2,
+            speed: 0.42 + Math.random() * 0.28,
+            role: 'idle',
+            color: 0xe8b948
           });
         }
 
@@ -185,7 +186,7 @@ const GameRenderer = {
 
         if (!tile.revealed) {
           nameEl.textContent = '☁️ Te Ao Kapua (Unclaimed Wilderness)';
-          descEl.textContent = 'Expand your Whenua via Pathfinders, Milestones, or Survey Tasks to reveal this land.';
+          descEl.textContent = 'Expand your Whenua via Explorers (Kaitūhura), Milestones, or Survey Expeditions to reveal this land.';
           return;
         }
 
@@ -378,21 +379,13 @@ const GameRenderer = {
         g.zIndex = z;
 
         if (b.status === 'building') {
-          // Timber scaffolding visual during construction
+          // Timber scaffolding visual during construction (progress bar is drawn live at 60fps in renderDynamicFX)
           g.lineStyle(1.5, 0xd4a359, 0.9);
           g.beginFill(0x8c673a, 0.45);
           g.drawRect(-12, -16, 24, 16);
           g.endFill();
           g.moveTo(-12, -16); g.lineTo(12, 0);
           g.moveTo(12, -16); g.lineTo(-12, 0);
-          // Mini progress bar above scaffold
-          const pct = Math.min(1, b.elapsed / Math.max(1, b.duration));
-          g.lineStyle(0);
-          g.beginFill(0x000000, 0.65);
-          g.drawRect(-14, -24, 28, 4);
-          g.beginFill(0x52c7a1, 1);
-          g.drawRect(-14, -24, 28 * pct, 4);
-          g.endFill();
           return g;
         }
 
@@ -567,7 +560,7 @@ const GameRenderer = {
       },
 
       // =======================================================================
-      // DYNAMIC FX: OCEAN WAVES, TURNING POINT SHIP, VILLAGERS, SMOKE & SPARKLES
+      // DYNAMIC FX: OCEAN WAVES, TURNING POINT SHIP, AOE ROLE UNITS, SMOKE
       // =======================================================================
       spawnSparkles(x, y, color = 0xe8b948, count = 10) {
         for (let i = 0; i < count; i++) {
@@ -585,6 +578,50 @@ const GameRenderer = {
         }
       },
 
+      pickTargetTileForRole(role) {
+        const matchingTiles = [];
+        const activeBuild = this.state.buildings.find(b => b.status === 'building');
+
+        if (role === 'gardener' && activeBuild && Math.random() < 0.6) {
+          return { col: activeBuild.col + (Math.random() - 0.5) * 0.6, row: activeBuild.row + (Math.random() - 0.5) * 0.6 };
+        }
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const t = this.grid[r][c];
+            if (!t.revealed || !t.isLand) continue;
+
+            if (role === 'forester' && (t.type === 'forest' || t.buildingType === 'timber_mill' || t.buildingType === 'rua_kumara')) {
+              matchingTiles.push(t);
+            } else if (role === 'hunter' && (t.type === 'sand' || t.type === 'hill' || t.buildingType === 'waka_ama')) {
+              matchingTiles.push(t);
+            } else if (role === 'explorer') {
+              // Check if adjacent to unrevealed land (fog edge)
+              const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+              const nearFog = dirs.some(([dr, dc]) => {
+                const nt = this.grid[r + dr] && this.grid[r + dr][c + dc];
+                return nt && nt.isLand && !nt.revealed;
+              });
+              if (nearFog) matchingTiles.push(t);
+            } else if (role === 'gardener' && (t.buildingType === 'mara_kumara' || t.buildingType === 'whare')) {
+              matchingTiles.push(t);
+            } else if (role === 'merchant' && (t.buildingType === 'wharf_port' || t.buildingType === 'trading_post' || t.type === 'road')) {
+              matchingTiles.push(t);
+            } else if (role === 'pastoralist' && (t.type === 'farmland' || t.buildingType === 'pastoral_farm')) {
+              matchingTiles.push(t);
+            } else if (role === 'artisan' && (t.type === 'town_floor' || t.buildingType === 'timber_mill')) {
+              matchingTiles.push(t);
+            }
+          }
+        }
+
+        if (matchingTiles.length > 0) {
+          const pick = matchingTiles[Math.floor(Math.random() * matchingTiles.length)];
+          return { col: pick.col + (Math.random() - 0.5) * 0.5, row: pick.row + (Math.random() - 0.5) * 0.5 };
+        }
+        return { col: 8 + (Math.random() - 0.5) * 3, row: 15 + (Math.random() - 0.5) * 2 };
+      },
+
       renderDynamicFX(dt) {
         if (!this.fxLayer || !this.waterLayer) return;
         this.fxLayer.clear();
@@ -600,9 +637,38 @@ const GameRenderer = {
           this.fxLayer.lineTo(pos.x + 10 + waveOffset, pos.y - 3);
         }
 
-        // 2. Cooking fire smoke rising gently from Whare, Cottages & Mills
+        // 2. Cooking fire smoke rising gently from Whare, Cottages & Mills + Live 60fps Construction Progress Bars
         for (const b of this.state.buildings) {
-          if (b.status === 'complete' && ['whare', 'settler_cottage', 'timber_mill'].includes(b.type)) {
+          if (b.status === 'building') {
+            const t = this.grid[b.row] && this.grid[b.row][b.col];
+            if (t) {
+              const pos = this.isoToScreen(b.col, b.row, t.elevation);
+              const pct = Math.max(0, Math.min(1, b.elapsed / Math.max(1, b.duration)));
+              const barW = 32;
+              const barH = 6;
+              const bx = pos.x - barW / 2;
+              const by = pos.y - 26;
+
+              // Outer track matching .timer-bar-wrap
+              this.fxLayer.lineStyle(1, 0xd4b27c, 0.55);
+              this.fxLayer.beginFill(0x0a1418, 0.82);
+              this.fxLayer.drawRoundedRect(bx, by, barW, barH, 3);
+              this.fxLayer.endFill();
+
+              // Inner fill matching .timer-bar-fill (#52c7a1 -> #e8b948)
+              if (pct > 0.01) {
+                const fillW = Math.max(3, barW * pct);
+                this.fxLayer.lineStyle(0);
+                this.fxLayer.beginFill(0x52c7a1, 1);
+                this.fxLayer.drawRoundedRect(bx, by, fillW, barH, 3);
+                if (fillW > 8) {
+                  this.fxLayer.beginFill(0xe8b948, 0.85);
+                  this.fxLayer.drawRoundedRect(bx + fillW * 0.45, by, fillW * 0.55, barH, 3);
+                }
+                this.fxLayer.endFill();
+              }
+            }
+          } else if (b.status === 'complete' && ['whare', 'settler_cottage', 'timber_mill'].includes(b.type)) {
             if (Math.random() < 0.08) {
               const t = this.grid[b.row][b.col];
               const pos = this.isoToScreen(b.col, b.row, t.elevation);
@@ -635,29 +701,64 @@ const GameRenderer = {
           this.fxLayer.endFill();
         }
 
-        // 4. Animated Villagers moving across revealed land tiles
-        const visibleVillagers = Math.min(this.villagerSprites.length, Math.max(3, Math.floor(this.state.population / 4)));
-        for (let i = 0; i < visibleVillagers; i++) {
+        // 4. AoE Role-Driven Units moving across revealed land tiles
+        const roleList = [];
+        for (const j of JOB_DEFS) {
+          const c = this.state.jobs[j.id] || 0;
+          for (let k = 0; k < c; k++) {
+            roleList.push({ role: j.id, color: j.unitColor || 0xe8b948 });
+          }
+        }
+        const totalPop = Math.floor(this.state.population);
+        while (roleList.length < totalPop) {
+          roleList.push({ role: 'idle', color: 0xb8c4c2 });
+        }
+
+        const visibleUnits = Math.min(this.villagerSprites.length, roleList.length);
+        for (let i = 0; i < visibleUnits; i++) {
           const v = this.villagerSprites[i];
+          const assigned = roleList[i];
+          if (v.role !== assigned.role) {
+            v.role = assigned.role;
+            v.color = assigned.color;
+            const tgt = this.pickTargetTileForRole(v.role);
+            v.targetCol = tgt.col;
+            v.targetRow = tgt.row;
+          }
+
           const dx = v.targetCol - v.col;
           const dy = v.targetRow - v.row;
           const dist = Math.hypot(dx, dy);
           if (dist < 0.25) {
-            v.targetCol = 7 + Math.random() * (this.state.chapter >= 2 ? 9 : 4);
-            v.targetRow = 11 + Math.random() * 5;
+            // Alternate between role work site and Kāinga/Town center dropoff
+            if (Math.random() < 0.35) {
+              v.targetCol = 8 + (Math.random() - 0.5) * 2;
+              v.targetRow = 15 + (Math.random() - 0.5) * 2;
+            } else {
+              const tgt = this.pickTargetTileForRole(v.role);
+              v.targetCol = tgt.col;
+              v.targetRow = tgt.row;
+            }
           } else {
             v.col += (dx / dist) * v.speed * dt;
             v.row += (dy / dist) * v.speed * dt;
           }
+
           const rIdx = Math.min(GRID_SIZE - 1, Math.max(0, Math.round(v.row)));
           const cIdx = Math.min(GRID_SIZE - 1, Math.max(0, Math.round(v.col)));
           const tile = this.grid[rIdx][cIdx];
           if (tile && tile.revealed && tile.isLand) {
             const pos = this.isoToScreen(v.col, v.row, tile.elevation);
-            this.fxLayer.beginFill(v.color, 0.95);
-            this.fxLayer.drawCircle(pos.x, pos.y - 5, 2.6);
-            this.fxLayer.beginFill(0xf6efe2, 0.95);
-            this.fxLayer.drawCircle(pos.x, pos.y - 9, 1.8);
+            if (v.role === 'explorer') {
+              // Subtle pounamu scouting ring beneath Explorer units
+              this.fxLayer.lineStyle(1, 0x52c7a1, 0.7);
+              this.fxLayer.drawCircle(pos.x, pos.y - 3, 4.5);
+              this.fxLayer.lineStyle(0);
+            }
+            this.fxLayer.beginFill(v.color, 0.96);
+            this.fxLayer.drawCircle(pos.x, pos.y - 5, 2.8);
+            this.fxLayer.beginFill(0xf6efe2, 0.96);
+            this.fxLayer.drawCircle(pos.x, pos.y - 9, 1.9);
             this.fxLayer.endFill();
           }
         }
