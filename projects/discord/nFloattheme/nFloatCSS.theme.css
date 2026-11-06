@@ -2,11 +2,16 @@
 	name: nFloat Updated
 	description: Compact mobile mode for Discord
 	author: Nate9828
-	version: 1.8	
-	update_time: 24/1/2026
+	version: 1.8.1	
+	update_time: 7/11/2026
 	website: https://nate9828.github.io
 	source: https://github.com/nate9828/nFloat-Discordtheme 
 	update_log:
+		1.8.1 - 7/11/2026
+			- Added resilient selectors for Discord's changing sidebar and member-list class names.
+			- Added support for the new '.container_86es0b' member list class.
+			- Removed padding from Discord's hashed blockContainer classes on smaller screens.
+
 		1.8 - 24/1/2026
 			- Discord changed class names again, so I updated selectors.
 
@@ -36,7 +41,8 @@
 } */
 
 /* left sidebar (servers, channels) */
-.sidebarList_c48ade, .sidebarList__5e434, ._5e434347c823b592-sidebarList {
+.sidebarList_c48ade, .sidebarList__5e434, ._5e434347c823b592-sidebarList,
+[class*="sidebarList"] {
     /* display: flex; */
     right: 0;
     width: var(--sidebar-closed-width, 60px) !important;
@@ -53,7 +59,8 @@
 
 /* Super small screen size */
 @media (max-width:430px){
-	.sidebarList_c48ade, .sidebarList__5e434, ._5e434347c823b592-sidebarList{
+	.sidebarList_c48ade, .sidebarList__5e434, ._5e434347c823b592-sidebarList,
+	[class*="sidebarList"]{
 		width: 0px !important;
 	}   
 	.c8ffbb79449f399c-members.d125d22cdfd32cfe-thin.d125d22cdfd32cfe-scrollerBase.d125d22cdfd32cfe-fade {
@@ -99,7 +106,7 @@
 	margin-left: 0px;
 	transition: margin-left 0.2s ease-in-out;
 	}
-	.visual-refresh [class*="2-sidebar"]:hover [class*="sidebarListRounded"] /* Discord update */ {
+	.visual-refresh [class*="2-sidebar"]:hover [class*="sidebarList"] /* Discord update */ {
 		margin-left: 0px !important;
 	}
 	
@@ -119,7 +126,8 @@
 .sidebar_c48ade:hover .sidebarList__5e434,
 .sidebar__5e434:hover .sidebarList__5e434,
 ._5e434347c823b592-sidebar:hover ._5e434347c823b592-sidebarList,
-[class*="2-sidebar"]:hover [class*="sidebarListRounded"] 
+[class*="2-sidebar"]:hover [class*="sidebarList"],
+[class*="sidebar"]:hover [class*="sidebarList"]
  {
 	width: calc(var(--custom-guild-sidebar-width) - var(--custom-guild-list-width)) !important;
 	transition: width 0.3s ease-in-out;
@@ -142,7 +150,7 @@
 }
 /* Delay sidebar closing to reduce flicker */
 .sidebarList_c48ade:not(:hover), .sidebarList__5e434:not(:hover),
-._5e434347c823b592-sidebarList:not(:hover), [class*="sidebarListRounded"]:not(:hover) /* Discord update */ { 
+._5e434347c823b592-sidebarList:not(:hover), [class*="sidebarList"]:not(:hover) /* Discord update */ { 
 	transition: width 0.3s ease-in-out var(--sidebar-delay-close, 1.3s);
 }
 
@@ -294,7 +302,8 @@
 
 /* Member list rail: keep collapsed until hover */
 .container_c8ffbb, .container__7641b,
-.c8ffbb79449f399c-container, ._7641b507c6cdbb10-container{
+.c8ffbb79449f399c-container, ._7641b507c6cdbb10-container,
+.container_86es0b{
 	position: relative !important; 
 	right: 0;
 	width: var(--member-list-width-close, 62px) !important;
@@ -319,7 +328,8 @@
 
 @media (min-width: 431px) {
 	.container_c8ffbb:hover, .container__7641b:hover,
-	.c8ffbb79449f399c-container:hover, ._7641b507c6cdbb10-container:hover {
+	.c8ffbb79449f399c-container:hover, ._7641b507c6cdbb10-container:hover,
+	.container_86es0b:hover {
 		transform: translateX(var(--member-list-width-open, -203px));
 		transition: transform 0.3s ease-in-out var(--member-list-delay-open, 0s);
 	}
@@ -328,7 +338,8 @@
 /* Super small screen size: stronger translate so avatars stay visible */
 @media (max-width: 430px) {
 	.container_c8ffbb:hover, .container__7641b:hover,
-	.c8ffbb79449f399c-container:hover, ._7641b507c6cdbb10-container:hover {
+	.c8ffbb79449f399c-container:hover, ._7641b507c6cdbb10-container:hover,
+	.container_86es0b:hover {
 		transform: translateX(-245px);
 		transition: transform 0.3s ease-in-out var(--member-list-delay-open, 0s);
 	}
@@ -337,12 +348,14 @@
 
 /* Member category text: slide right so collapsed view only shows avatars */
 .container__7641b:not(:hover) .membersGroup_c8ffbb,
-._7641b507c6cdbb10-container:not(:hover) .c8ffbb79449f399c-membersGroup{
+._7641b507c6cdbb10-container:not(:hover) .c8ffbb79449f399c-membersGroup,
+.container_86es0b:not(:hover) .membersGroup_c8ffbb{
 	transform: translateX(90px);
 	transition: transform 0.3s ease-in-out var(--member-list-delay-close, 0s);
 }
 .container__7641b:hover .membersGroup_c8ffbb,
-._7641b507c6cdbb10-container:hover .c8ffbb79449f399c-membersGroup{
+._7641b507c6cdbb10-container:hover .c8ffbb79449f399c-membersGroup,
+.container_86es0b:hover .membersGroup_c8ffbb{
 	transform: translateX(90px);
 	transition: transform 0.3s ease-in-out var(--member-list-delay-open, 0s);
 }
@@ -364,12 +377,14 @@
 
 /* Align member avatars when collapsed */ 
 .container__7641b:not(:hover) .member__5d473,
-._7641b507c6cdbb10-container:not(:hover) ._5d473ecff348c314-member{
+._7641b507c6cdbb10-container:not(:hover) ._5d473ecff348c314-member,
+.container_86es0b:not(:hover) .member__5d473{
 	margin-left: 100px;
 	transition: margin-left 0.3s ease-in-out var(--member-list-delay-close, 0s);
 }
 .container__7641b:hover .member__5d473,
-._7641b507c6cdbb10-container:hover ._5d473ecff348c314-member{
+._7641b507c6cdbb10-container:hover ._5d473ecff348c314-member,
+.container_86es0b:hover .member__5d473{
 	margin-left: 100px;
 	transition: margin-left 0.3s ease-in-out var(--member-list-delay-open, 0s);
 }
@@ -420,10 +435,11 @@
 
 
 /* Settings menu */
-/* Settings menu: collapse list on smaller screens */
+/* Settings menu: use stable class fragments so Discord hash changes do not break it */
 @media(max-width:1052px){
 	.sidebar__23e6b,
-	._409aa1aeee28d5f7-sidebar{
+	._409aa1aeee28d5f7-sidebar,
+	[class*="sidebar_"][class*="theme-dark"]{
 		max-width: 200px !important;
 	}
 	.sidebarRegion__23e6b,
@@ -434,19 +450,22 @@
 /* Settings menu hover-expand on very small screens */
 @media(max-width: 650px){
 	.sidebar__23e6b,
-	._409aa1aeee28d5f7-sidebar{
+	._409aa1aeee28d5f7-sidebar,
+	[class*="sidebar_"][class*="theme-dark"]{
 		max-width: 50px !important;
 		transition: max-width 0.3s ease-in-out ;
 	}
 	.sidebar__23e6b:hover,
-	._409aa1aeee28d5f7-sidebar:hover{
+	._409aa1aeee28d5f7-sidebar:hover,
+	[class*="sidebar_"][class*="theme-dark"]:hover{
 		max-width: 200px !important;
 		transition: max-width 0.3s ease-in-out ;
 	}
 
 	/* Collapse search into an icon when not hovered */
 	.sidebar__23e6b:not(:hover) .searchBarContainer__23e6b,
-	._409aa1aeee28d5f7-sidebar:not(:hover) ._409aa1aeee28d5f7-searchBarContainer{
+	._409aa1aeee28d5f7-sidebar:not(:hover) ._409aa1aeee28d5f7-searchBarContainer,
+	[class*="sidebar_"][class*="theme-dark"]:not(:hover) [class*="searchBarContainer_"]{
 		display: flex !important;
 		align-items: center;
 		justify-content: center;
@@ -458,7 +477,8 @@
 		position: relative;
 	}
 	.sidebar__23e6b:not(:hover) .searchBarContainer__23e6b::before,
-	._409aa1aeee28d5f7-sidebar:not(:hover) ._409aa1aeee28d5f7-searchBarContainer::before{
+	._409aa1aeee28d5f7-sidebar:not(:hover) ._409aa1aeee28d5f7-searchBarContainer::before,
+	[class*="sidebar_"][class*="theme-dark"]:not(:hover) [class*="searchBarContainer_"]::before{
 		content: "";
 		width: 3000px;
 		height: 3000px;
@@ -466,20 +486,23 @@
 		margin-left: 10px;
 	}
 	.sidebar__23e6b:not(:hover) .searchBarContainer__23e6b > *,
-	._409aa1aeee28d5f7-sidebar:not(:hover) ._409aa1aeee28d5f7-searchBarContainer > *{
+	._409aa1aeee28d5f7-sidebar:not(:hover) ._409aa1aeee28d5f7-searchBarContainer > *,
+	[class*="sidebar_"][class*="theme-dark"]:not(:hover) [class*="searchBarContainer_"] > *{
 		opacity: 0;
 		pointer-events: none;
 	}
 
 	/* Restore full search when hovered */
 	.sidebar__23e6b:hover .searchBarContainer__23e6b,
-	._409aa1aeee28d5f7-sidebar:hover ._409aa1aeee28d5f7-searchBarContainer{
+	._409aa1aeee28d5f7-sidebar:hover ._409aa1aeee28d5f7-searchBarContainer,
+	[class*="sidebar_"][class*="theme-dark"]:hover [class*="searchBarContainer_"]{
 		width: auto !important;
 		height: auto !important;
 		background: none;
 	}
 	.sidebar__23e6b:hover .searchBarContainer__23e6b > *,
-	._409aa1aeee28d5f7-sidebar:hover ._409aa1aeee28d5f7-searchBarContainer > *{
+	._409aa1aeee28d5f7-sidebar:hover ._409aa1aeee28d5f7-searchBarContainer > *,
+	[class*="sidebar_"][class*="theme-dark"]:hover [class*="searchBarContainer_"] > *{
 		opacity: 1;
 		pointer-events: auto;
 	}
@@ -554,6 +577,9 @@
 	._6db1d32c47b6ad72-shop, .f75fb00fb7356cbe-chat  {
 		min-width: inherit !important;
 	}
+	[class*="blockContainer"]{
+		padding: 0px !important;
+	}
 }
 @media(max-width: 600px){
 	.headerBarInner__80679,
@@ -595,5 +621,3 @@
 		overflow: visible;
 	}
 }
-
-
